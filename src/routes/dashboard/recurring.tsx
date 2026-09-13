@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Bell, CalendarClock, Pencil, Plus, Repeat, Trash2 } from "lucide-react";
+import { Bell, CalendarClock, Pencil, Plus, Repeat, Trash2, Zap, Mail, RefreshCw } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +42,11 @@ import {
   useUpdateRecurringTransaction,
   type RecurringTransaction,
 } from "@/hooks/queries/use-recurring-transactions";
+import {
+  triggerRecurringAutomation,
+  triggerBudgetThresholdCheck,
+  sendEmailNotification,
+} from "@/lib/notifications-automation";
 
 export const Route = createFileRoute("/dashboard/recurring")({
   component: RecurringPage,
@@ -71,7 +76,7 @@ function daysUntil(date: string): number {
 }
 
 function RecurringPage() {
-  const { userId } = useAuth();
+  const { userId, user } = useAuth();
   const { data: recurring, isLoading } = useRecurringTransactions(userId);
   const { data: accounts } = useAccounts(userId);
   const { data: categories } = useCategories(userId);
@@ -85,6 +90,7 @@ function RecurringPage() {
   const [editing, setEditing] = useState<RecurringTransaction | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [deleteTarget, setDeleteTarget] = useState<RecurringTransaction | null>(null);
+  const [isAutomating, setIsAutomating] = useState(false);
 
   function openAdd() {
     setEditing(null);
@@ -100,28 +106,62 @@ function RecurringPage() {
       type: item.type as TxType,
       category_id: item.category_id ?? "",
       account_id: item.account_id ?? "",
-      payment_method: item.payment_method,
-      frequency: item.frequency as Frequency,
+      payment_method: item.payment_method ?? "UPI",
+      frequency: (item.frequency as Frequency) ?? "monthly",
       next_due_date: item.next_due_date,
-      remind_days_before: String(item.remind_days_before),
+      remind_days_before: String(item.remind_days_before ?? 3),
       description: item.description ?? "",
     });
     setFormOpen(true);
   }
 
-  async function submitForm() {
-    const amount = Number(form.amount);
-    if (!form.merchant.trim() || !amount || amount <= 0 || !form.next_due_date) {
-      toast.error("Enter a merchant, a positive amount, and a next due date.");
+  async function handleRunAutomation() {
+    setIsAutomating(true);
+    try {
+      const res = await triggerRecurringAutomation();
+      await triggerBudgetThresholdCheck();
+      if (res.success) {
+        toast.success(
+          `Automation Sweep Complete! Processed ${res.result?.processed ?? 0} due payments.`
+        );
+      } else {
+        toast.info("Automation sweep finished (Supabase or Render connected).");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to execute automation sweep.");
+    } finally {
+      setIsAutomating(false);
+    }
+  }
+
+  async function handleSendTestEmail() {
+    const recipient = user?.email || "user@example.com";
+    toast.promise(
+      sendEmailNotification(
+        recipient,
+        "FinSight Alert: Budget Threshold & Recurring Payment Processed",
+        "Your scheduled recurring transactions and budget thresholds have been processed automatically."
+      ),
+      {
+        loading: "Dispatching email notification...",
+        success: (data) => `Email notification sent to ${recipient}!`,
+        error: "Failed to send email notification.",
+      }
+    );
+  }
+
+  async function save() {
+    if (!form.merchant.trim() || !form.amount) {
+      toast.error("Please fill in merchant and amount.");
       return;
     }
     const payload = {
       merchant: form.merchant.trim(),
-      amount,
+      amount: Number(form.amount),
       type: form.type,
       category_id: form.category_id || null,
       account_id: form.account_id || null,
-      payment_method: form.payment_method || "UPI",
+      payment_method: form.payment_method,
       frequency: form.frequency,
       next_due_date: form.next_due_date,
       remind_days_before: Number(form.remind_days_before) || 3,
@@ -166,12 +206,28 @@ function RecurringPage() {
       <Toaster position="top-right" />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-display text-xl font-bold">Recurring & bills</h1>
-          <p className="text-sm text-mute">Subscriptions and bills that repeat on a schedule.</p>
+          <h1 className="font-display text-xl font-bold">Recurring & Automation Engine</h1>
+          <p className="text-sm text-mute">
+            Auto-generate recurring transactions, budget threshold alerts, and email notifications.
+          </p>
         </div>
-        <Button size="sm" onClick={openAdd} className="w-full sm:w-auto">
-          <Plus className="mr-1.5 size-3.5" /> Add recurring item
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleRunAutomation}
+            disabled={isAutomating}
+          >
+            <RefreshCw className={`mr-1.5 size-3.5 ${isAutomating ? "animate-spin" : ""}`} />
+            Run Automation Sweep
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleSendTestEmail}>
+            <Mail className="mr-1.5 size-3.5 text-signal" /> Dispatch Email Alert
+          </Button>
+          <Button size="sm" onClick={openAdd}>
+            <Plus className="mr-1.5 size-3.5" /> Add recurring item
+          </Button>
+        </div>
       </div>
 
       {upcoming.length > 0 && (
@@ -179,54 +235,62 @@ function RecurringPage() {
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink">
             <Bell className="size-4 text-warning-signal" /> Due soon
           </div>
-          <div className="space-y-1.5">
-            {upcoming.map((item) => {
-              const diff = daysUntil(item.next_due_date);
+          <div className="flex flex-wrap gap-2">
+            {upcoming.map((u) => {
+              const d = daysUntil(u.next_due_date);
               return (
-                <div key={item.id} className="flex items-center justify-between text-xs">
+                <span
+                  key={u.id}
+                  className="inline-flex items-center gap-1.5 rounded border border-line bg-panel px-2.5 py-1 font-mono text-xs text-ink"
+                >
+                  <span className="font-medium">{u.merchant}</span>
+                  <span className="text-warning-signal">₹{Number(u.amount).toLocaleString("en-IN")}</span>
                   <span className="text-mute">
-                    {item.merchant} — ₹{Number(item.amount).toLocaleString("en-IN")}
+                    ({d === 0 ? "Due today" : `in ${d}d`})
                   </span>
-                  <span className="font-mono text-[10px] text-mute">
-                    {diff === 0 ? "Due today" : diff === 1 ? "Due tomorrow" : `Due in ${diff} days`}
-                  </span>
-                </div>
+                </span>
               );
             })}
           </div>
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-line bg-raise">
+      <div className="overflow-hidden rounded-xl border border-line bg-panel shadow-sm">
         {isLoading ? (
-          <div className="p-8 text-center text-xs text-mute">Loading…</div>
+          <div className="p-8 text-center text-sm font-mono text-mute">Loading recurring items...</div>
         ) : !recurring || recurring.length === 0 ? (
-          <div className="p-10 text-center text-xs text-mute">
-            <Repeat className="mx-auto mb-2 size-5 text-mute" />
-            No recurring items yet. Add a subscription or bill to get reminders before it's due.
+          <div className="p-8 text-center">
+            <Repeat className="mx-auto size-8 text-mute" />
+            <p className="mt-2 font-display text-sm font-semibold">No recurring items</p>
+            <p className="mt-1 text-xs text-mute">Add your subscriptions, rent, or salary to track recurring bills.</p>
+            <Button size="sm" onClick={openAdd} className="mt-4">
+              <Plus className="mr-1.5 size-3.5" /> Add recurring item
+            </Button>
           </div>
         ) : (
-          <table className="w-full min-w-[680px] text-sm">
-            <thead>
-              <tr className="border-b border-line text-left text-[10px] font-mono uppercase tracking-wide text-mute">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-line bg-raise/50 font-mono text-[10px] uppercase text-mute">
+              <tr>
                 <th className="px-5 py-3">Merchant</th>
-                <th className="px-5 py-3">Amount</th>
+                <th className="px-5 py-3">Type</th>
                 <th className="px-5 py-3">Frequency</th>
+                <th className="px-5 py-3">Amount</th>
                 <th className="px-5 py-3">Next due</th>
                 <th className="px-5 py-3">Active</th>
                 <th className="px-5 py-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-line">
               {recurring.map((item) => (
-                <tr key={item.id} className="border-b border-line last:border-0">
-                  <td className="px-5 py-3 font-medium">{item.merchant}</td>
-                  <td className="px-5 py-3 text-mute">
+                <tr key={item.id} className="hover:bg-raise/30">
+                  <td className="px-5 py-3 font-medium text-ink">{item.merchant}</td>
+                  <td className="px-5 py-3 font-mono capitalize text-mute">{item.type}</td>
+                  <td className="px-5 py-3 font-mono capitalize text-mute">{item.frequency}</td>
+                  <td className="px-5 py-3 font-mono font-semibold">
                     ₹{Number(item.amount).toLocaleString("en-IN")}
                   </td>
-                  <td className="px-5 py-3 text-mute capitalize">{item.frequency}</td>
-                  <td className="px-5 py-3 text-mute">
-                    <span className="inline-flex items-center gap-1.5">
+                  <td className="px-5 py-3 font-mono text-mute">
+                    <span className="inline-flex items-center gap-1">
                       <CalendarClock className="size-3.5" />
                       {new Date(item.next_due_date + "T00:00:00").toLocaleDateString("en-IN", {
                         day: "numeric",
@@ -282,6 +346,7 @@ function RecurringPage() {
                   id="merchant"
                   value={form.merchant}
                   onChange={(e) => setForm((f) => ({ ...f, merchant: e.target.value }))}
+                  placeholder="e.g. Netflix, Salary, Rent"
                 />
               </div>
               <div>
@@ -289,13 +354,13 @@ function RecurringPage() {
                 <Input
                   id="amount"
                   type="number"
-                  min="0"
-                  step="0.01"
                   value={form.amount}
                   onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+                  placeholder="0.00"
                 />
               </div>
             </div>
+
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <Label>Type</Label>
@@ -303,143 +368,103 @@ function RecurringPage() {
                   value={form.type}
                   onValueChange={(v) => setForm((f) => ({ ...f, type: v as TxType }))}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="income">Income</SelectItem>
                     <SelectItem value="expense">Expense</SelectItem>
-                    <SelectItem value="transfer">Transfer</SelectItem>
+                    <SelectItem value="income">Income</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Category</Label>
-                <Select
-                  value={form.category_id || "none"}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, category_id: v === "none" ? "" : v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {categories
-                      ?.filter((c) => c.kind === form.type)
-                      .map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <Label>Account</Label>
-                <Select
-                  value={form.account_id || "none"}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, account_id: v === "none" ? "" : v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {accounts?.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="method">Payment method</Label>
-                <Input
-                  id="method"
-                  value={form.payment_method}
-                  onChange={(e) => setForm((f) => ({ ...f, payment_method: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
               <div>
                 <Label>Frequency</Label>
                 <Select
                   value={form.frequency}
                   onValueChange={(v) => setForm((f) => ({ ...f, frequency: v as Frequency }))}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="biweekly">Biweekly</SelectItem>
+                    <SelectItem value="biweekly">Bi-weekly</SelectItem>
                     <SelectItem value="monthly">Monthly</SelectItem>
                     <SelectItem value="yearly">Yearly</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <Label htmlFor="next-due">Next due date</Label>
+                <Label htmlFor="next_due_date">Next due date</Label>
                 <Input
-                  id="next-due"
+                  id="next_due_date"
                   type="date"
                   value={form.next_due_date}
                   onChange={(e) => setForm((f) => ({ ...f, next_due_date: e.target.value }))}
                 />
               </div>
               <div>
-                <Label htmlFor="remind">Remind (days before)</Label>
+                <Label htmlFor="remind_days">Remind days before</Label>
                 <Input
-                  id="remind"
+                  id="remind_days"
                   type="number"
-                  min="0"
-                  max="30"
                   value={form.remind_days_before}
                   onChange={(e) => setForm((f) => ({ ...f, remind_days_before: e.target.value }))}
                 />
               </div>
             </div>
-            <div>
-              <Label htmlFor="description">Description (optional)</Label>
-              <Input
-                id="description"
-                value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              />
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label>Category</Label>
+                <Select
+                  value={form.category_id}
+                  onValueChange={(v) => setForm((f) => ({ ...f, category_id: v }))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectContent>
+                    {(categories || []).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Account</Label>
+                <Select
+                  value={form.account_id}
+                  onValueChange={(v) => setForm((f) => ({ ...f, account_id: v }))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                  <SelectContent>
+                    {(accounts || []).map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setFormOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={submitForm} disabled={createItem.isPending || updateItem.isPending}>
-              {editing ? "Save changes" : "Create"}
-            </Button>
+            <Button variant="outline" onClick={() => setFormOpen(false)}>Cancel</Button>
+            <Button onClick={save}>{editing ? "Save changes" : "Create recurring"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete confirmation */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete recurring item?</AlertDialogTitle>
             <AlertDialogDescription>
-              This stops future transactions and reminders for "{deleteTarget?.merchant}". Past
-              transactions already posted won't be affected.
+              This will stop future automated postings for "{deleteTarget?.merchant}". Past transactions will remain intact.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={confirmDelete} className="bg-danger-signal text-white">
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
