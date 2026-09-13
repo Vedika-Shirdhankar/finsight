@@ -1,0 +1,1 @@
+import{t as e}from"./client-Duo4sp1v.js";import{t}from"./useQuery-Bn6X1oXp.js";import{o as n}from"./index-BrpamtNy.js";function r(r){return t({queryKey:n.categories(r??``),queryFn:async()=>{let{data:t,error:n}=await e.from(`categories`).select(`*`).order(`name`,{ascending:!0});if(n)throw n;return t},enabled:!!r})}export{r as t};

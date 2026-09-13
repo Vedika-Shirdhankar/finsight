@@ -1,0 +1,39 @@
+import { u as getRequest } from "./createServerFn-BFFE07zL.mjs";
+import { t as createMiddleware } from "./createMiddleware-B_4t7rW1.mjs";
+import { t as createClient } from "../_libs/supabase__supabase-js.mjs";
+import processModule from "node:process";
+//#region node_modules/.nitro/vite/services/ssr/assets/auth-middleware-0syUcLjX.js
+var requireSupabaseAuth = createMiddleware({ type: "function" }).server(async ({ next }) => {
+	const SUPABASE_URL = processModule.env["SUPABASE_URL"];
+	const SUPABASE_ANON_KEY = processModule.env["SUPABASE_ANON_KEY"];
+	if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+		const message = `Missing Supabase environment variable(s): ${[...!SUPABASE_URL ? ["SUPABASE_URL"] : [], ...!SUPABASE_ANON_KEY ? ["SUPABASE_ANON_KEY"] : []].join(", ")}. Please set them in your .env file.`;
+		console.error(`[Supabase] ${message}`);
+		throw new Error(message);
+	}
+	const request = getRequest();
+	if (!request?.headers) throw new Error("Unauthorized: No request headers available");
+	const authHeader = request.headers.get("authorization");
+	if (!authHeader) throw new Error("Unauthorized: No authorization header provided");
+	if (!authHeader.startsWith("Bearer ")) throw new Error("Unauthorized: Only Bearer tokens are supported");
+	const token = authHeader.replace("Bearer ", "");
+	if (!token) throw new Error("Unauthorized: No token provided");
+	if (token.split(".").length !== 3) throw new Error("Unauthorized: Invalid token");
+	const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+		global: { headers: { Authorization: `Bearer ${token}` } },
+		auth: {
+			persistSession: false,
+			autoRefreshToken: false
+		}
+	});
+	const { data, error } = await supabase.auth.getClaims(token);
+	if (error || !data?.claims) throw new Error("Unauthorized: Invalid token");
+	if (!data.claims.sub) throw new Error("Unauthorized: No user ID found in token");
+	return next({ context: {
+		supabase,
+		userId: data.claims.sub,
+		claims: data.claims
+	} });
+});
+//#endregion
+export { requireSupabaseAuth as t };
