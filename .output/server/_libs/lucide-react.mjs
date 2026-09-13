@@ -447,6 +447,21 @@ var CircleDollarSign = createLucideIcon("circle-dollar-sign", [
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var Clock = createLucideIcon("clock", [["circle", {
+	cx: "12",
+	cy: "12",
+	r: "10",
+	key: "1mglay"
+}], ["path", {
+	d: "M12 6v6l4 2",
+	key: "mmk7yg"
+}]]);
+/**
+* @license lucide-react v0.575.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var Coins = createLucideIcon("coins", [
 	["path", {
 		d: "M13.744 17.736a6 6 0 1 1-7.48-7.48",
@@ -661,6 +676,26 @@ var Landmark = createLucideIcon("landmark", [
 	["path", {
 		d: "M6 18v-7",
 		key: "1ivflk"
+	}]
+]);
+/**
+* @license lucide-react v0.575.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var Layers = createLucideIcon("layers", [
+	["path", {
+		d: "M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z",
+		key: "zw3jo"
+	}],
+	["path", {
+		d: "M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12",
+		key: "1wduqc"
+	}],
+	["path", {
+		d: "M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17",
+		key: "kqbvx6"
 	}]
 ]);
 /**
@@ -1123,26 +1158,6 @@ var TrendingUp = createLucideIcon("trending-up", [["path", {
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
-var TriangleAlert = createLucideIcon("triangle-alert", [
-	["path", {
-		d: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3",
-		key: "wmoenq"
-	}],
-	["path", {
-		d: "M12 9v4",
-		key: "juzpu7"
-	}],
-	["path", {
-		d: "M12 17h.01",
-		key: "p32p05"
-	}]
-]);
-/**
-* @license lucide-react v0.575.0 - ISC
-*
-* This source code is licensed under the ISC license.
-* See the LICENSE file in the root directory of this source tree.
-*/
 var Upload = createLucideIcon("upload", [
 	["path", {
 		d: "M12 3v12",
@@ -1263,5 +1278,15 @@ var X = createLucideIcon("x", [["path", {
 	d: "m6 6 12 12",
 	key: "d8bk6v"
 }]]);
+/**
+* @license lucide-react v0.575.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var Zap = createLucideIcon("zap", [["path", {
+	d: "M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z",
+	key: "1xq2db"
+}]]);
 //#endregion
-export { Building2 as $, LayoutDashboard as A, Coins as B, Pencil as C, LogOut as D, Mail as E, Eye as F, ChevronLeft as G, CircleCheck as H, EyeOff as I, ChartPie as J, ChevronDown as K, Download as L, Funnel as M, FileText as N, LockKeyhole as O, FileDown as P, Calculator as Q, Database as R, PiggyBank as S, Menu as T, ChevronUp as U, CircleDollarSign as V, ChevronRight as W, ChartArea as X, ChartColumn as Y, CalendarClock as Z, Search as _, User as a, Activity as at, Radar as b, TriangleAlert as c, Trash2 as d, Bell as et, Target as f, Settings as g, ShieldAlert as h, Users as i, ArrowDownRight as it, Landmark as j, Lightbulb as k, TrendingUp as l, ShieldCheck as m, Wallet as n, ArrowRight as nt, UserRound as o, Sparkles as p, Check as q, WalletCards as r, ArrowLeft as rt, Upload as s, X as t, ArrowUpRight as tt, TrendingDown as u, Save as v, Moon as w, Plus as x, Repeat as y, CreditCard as z };
+export { CalendarClock as $, LayoutDashboard as A, CreditCard as B, Pencil as C, LogOut as D, Mail as E, FileDown as F, ChevronUp as G, Clock as H, Eye as I, ChevronDown as J, ChevronRight as K, EyeOff as L, Landmark as M, Funnel as N, LockKeyhole as O, FileText as P, ChartArea as Q, Download as R, PiggyBank as S, Menu as T, CircleDollarSign as U, Coins as V, CircleCheck as W, ChartPie as X, Check as Y, ChartColumn as Z, Search as _, Users as a, ArrowLeft as at, Radar as b, Upload as c, Trash2 as d, Calculator as et, Target as f, Settings as g, ShieldAlert as h, WalletCards as i, ArrowRight as it, Layers as j, Lightbulb as k, TrendingUp as l, ShieldCheck as m, X as n, Bell as nt, User as o, ArrowDownRight as ot, Sparkles as p, ChevronLeft as q, Wallet as r, ArrowUpRight as rt, UserRound as s, Activity as st, Zap as t, Building2 as tt, TrendingDown as u, Save as v, Moon as w, Plus as x, Repeat as y, Database as z };

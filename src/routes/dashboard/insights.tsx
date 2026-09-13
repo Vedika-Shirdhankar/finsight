@@ -13,6 +13,8 @@ import {
   ResponsiveContainer,
   Line,
   ComposedChart,
+  AreaChart,
+  Area,
 } from "recharts";
 import {
   Sparkles,
@@ -23,6 +25,13 @@ import {
   CheckCircle2,
   Radar,
   FileDown,
+  Activity,
+  ArrowUpRight,
+  ArrowDownRight,
+  Zap,
+  Target,
+  Clock,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -30,7 +39,14 @@ import { useTransactions } from "@/hooks/queries/use-transactions";
 import { useAccounts } from "@/hooks/queries/use-accounts";
 import { useCategories } from "@/hooks/queries/use-categories";
 import { useBudget } from "@/hooks/queries/use-budgets";
-import { detectAnomalies, forecastNextMonthSpend } from "@/lib/analytics";
+import { useRecurringTransactions } from "@/hooks/queries/use-recurring-transactions";
+import { useSavingsGoals } from "@/hooks/queries/use-savings-goals";
+import {
+  detectAnomalies,
+  forecastNextMonthSpend,
+  calculateCategoryDrift,
+  projectCashFlow,
+} from "@/lib/analytics";
 import { generateMonthlySummaryPdf } from "@/lib/pdf-summary";
 
 export const Route = createFileRoute("/dashboard/insights")({
@@ -40,10 +56,13 @@ export const Route = createFileRoute("/dashboard/insights")({
 function InsightsPage() {
   const { userId } = useAuth();
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "6m" | "1y">("30d");
+
   const { data: txns, isLoading } = useTransactions(userId, {});
   const { data: accounts } = useAccounts(userId);
   const { data: categories } = useCategories(userId);
   const { data: budget } = useBudget(userId);
+  const { data: recurringTxns } = useRecurringTransactions(userId);
+  const { data: goals } = useSavingsGoals(userId);
 
   const transactions = txns || [];
   const income = transactions
@@ -55,9 +74,11 @@ function InsightsPage() {
   const totalVolume = income + expenses;
   const avgTxnValue = transactions.length > 0 ? totalVolume / transactions.length : 0;
 
+  const currentBalance = (accounts || []).reduce((s, a) => s + Number(a.balance), 0);
+
   const categoryNameById = new Map((categories ?? []).map((c) => [c.id, c.name]));
 
-  // Category aggregation for pie chart — grouped by actual category, not merchant.
+  // Category aggregation for pie chart
   const categoryMap: Record<string, number> = {};
   transactions
     .filter((t) => t.type === "expense")
@@ -75,7 +96,7 @@ function InsightsPage() {
 
   const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"];
 
-  // Monthly trend from real transactions, keyed by calendar month so it sorts correctly.
+  // Monthly trend from real transactions
   const trendMap: Record<string, { key: string; month: string; income: number; expense: number }> =
     {};
   transactions.forEach((t) => {
@@ -88,7 +109,6 @@ function InsightsPage() {
   });
 
   const sortedTrend = Object.values(trendMap).sort((a, b) => a.key.localeCompare(b.key));
-
   const monthlyTrend =
     sortedTrend.length > 0
       ? sortedTrend
@@ -101,10 +121,17 @@ function InsightsPage() {
           { key: "", month: "Jun", income: 65000, expense: 42350 },
         ];
 
-  // ---- Real analytics: anomaly detection + next-month forecast ----
+  // ---- Advanced Analytics calculations ----
   const anomalies = detectAnomalies(transactions, categoryNameById);
   const topAnomaly = anomalies[0];
   const forecast = forecastNextMonthSpend(transactions);
+  const categoryDrift = calculateCategoryDrift(transactions, categoryNameById);
+  const cashFlowTimeline = projectCashFlow(
+    currentBalance > 0 ? currentBalance : 85420,
+    recurringTxns || [],
+    goals || [],
+    expenses > 0 ? expenses / 2 : 25000
+  );
 
   const forecastChartData = [
     ...monthlyTrend.map((m) => ({
@@ -116,13 +143,12 @@ function InsightsPage() {
       ? [{ month: "Next", actual: undefined, forecast: forecast.projectedNextMonth }]
       : []),
   ];
-  // Bridge the line between the last actual point and the forecast point.
   if (forecast.hasEnoughData && forecastChartData.length >= 2) {
     const bridge = forecastChartData[forecastChartData.length - 2];
     if (bridge) bridge.forecast = bridge.actual;
   }
 
-  // ---- Real, computed insights (replacing what used to be hardcoded sample copy) ----
+  // Computed signals
   const totalExpenseForConcentration = categoryData.reduce((s, c) => s + c.value, 0);
   const top2Share =
     totalExpenseForConcentration > 0
@@ -137,8 +163,8 @@ function InsightsPage() {
     .forEach((t) =>
       spendByCategory.set(
         t.category_id!,
-        (spendByCategory.get(t.category_id!) ?? 0) + Number(t.amount),
-      ),
+        (spendByCategory.get(t.category_id!) ?? 0) + Number(t.amount)
+      )
     );
   const overBudgetCount = budgetCategories.filter((bc) => {
     const spent = spendByCategory.get(bc.category_id) ?? 0;
@@ -147,49 +173,46 @@ function InsightsPage() {
 
   const insights = [
     {
-      title: "Category Concentration",
+      title: "Category Drift & Velocity",
       desc:
-        categoryData.length > 0
-          ? `Your top ${Math.min(2, categoryData.length)} spending ${categoryData.length > 1 ? "categories represent" : "category represents"} ${(top2Share * 100).toFixed(1)}% of tracked expenses.`
-          : "Not enough categorized expense data yet to measure concentration.",
-      type: top2Share > 0.5 ? "warning" : "neutral",
-      icon: AlertTriangle,
-      metric: categoryData.length > 0 ? `${(top2Share * 100).toFixed(1)}%` : "—",
+        categoryDrift.length > 0
+          ? `${categoryDrift.filter((d) => d.status === "Accelerating").length} categories accelerating in spend MoM.`
+          : "Not enough historical data to measure velocity.",
+      type: categoryDrift.some((d) => d.status === "Accelerating") ? "warning" : "neutral",
+      icon: Activity,
+      metric: `${categoryDrift.filter((d) => d.status === "Accelerating").length} Accelerating`,
     },
     {
-      title: "Unusual Transaction",
+      title: "Statistical Anomalies",
       desc: topAnomaly
-        ? `${topAnomaly.transaction.merchant ?? "A transaction"} in ${topAnomaly.categoryLabel} was ₹${Number(
-            topAnomaly.transaction.amount,
-          ).toLocaleString("en-IN")} — well above your usual spend there.`
-        : "No transactions stand out as unusual compared to your recent history.",
-      type: topAnomaly ? "warning" : "positive",
+        ? `Flagged ${anomalies.length} unusual transactions above 2.2σ.`
+        : "No statistical outliers detected in current sample.",
+      type: topAnomaly ? (topAnomaly.severity === "High" ? "warning" : "neutral") : "positive",
       icon: Radar,
-      metric: topAnomaly ? `${topAnomaly.zScore.toFixed(1)}σ` : "Clear",
+      metric: topAnomaly ? `${topAnomaly.severity} (${topAnomaly.zScore}σ)` : "Clean",
     },
     {
-      title: "Next Month Forecast",
-      desc: forecast.hasEnoughData
-        ? `Based on your last ${Math.min(3, forecast.history.length)} months, projected spend is ₹${Math.round(
-            forecast.projectedNextMonth,
-          ).toLocaleString(
-            "en-IN",
-          )}, ${forecast.trendPct >= 0 ? "up" : "down"} ${Math.abs(forecast.trendPct).toFixed(1)}% vs last month.`
-        : "Add a couple more months of transactions for a reliable forecast.",
-      type: forecast.hasEnoughData && forecast.trendPct > 10 ? "warning" : "neutral",
-      icon: forecast.trendPct >= 0 ? TrendingUp : TrendingDown,
-      metric: forecast.hasEnoughData
-        ? `₹${Math.round(forecast.projectedNextMonth).toLocaleString("en-IN")}`
-        : "—",
+      title: "90-Day Cash Flow Target",
+      desc: `Projected balance: ₹${(
+        cashFlowTimeline[cashFlowTimeline.length - 1]?.projectedBalance || 0
+      ).toLocaleString("en-IN")}`,
+      type:
+        (cashFlowTimeline[cashFlowTimeline.length - 1]?.projectedBalance || 0) > currentBalance
+          ? "positive"
+          : "warning",
+      icon: TrendingUp,
+      metric: `₹${Math.round(
+        (cashFlowTimeline[cashFlowTimeline.length - 1]?.projectedBalance || 0) / 1000
+      )}k`,
     },
     {
-      title: "Budget Health",
+      title: "Budget Risk Index",
       desc:
         budgetCategories.length === 0
-          ? "No budget set up for this month yet."
+          ? "No budget rules currently defined."
           : overBudgetCount === 0
-            ? "All budget categories remain within safe operational bounds."
-            : `${overBudgetCount} of ${budgetCategories.length} budget categories are at or near their limit.`,
+          ? "100% of tracked categories within budget limits."
+          : `${overBudgetCount} of ${budgetCategories.length} categories near capacity limit.`,
       type:
         budgetCategories.length === 0 ? "neutral" : overBudgetCount === 0 ? "positive" : "warning",
       icon: overBudgetCount === 0 ? CheckCircle2 : Lightbulb,
@@ -197,12 +220,11 @@ function InsightsPage() {
         budgetCategories.length === 0
           ? "—"
           : overBudgetCount === 0
-            ? "Healthy"
-            : `${overBudgetCount} at risk`,
+          ? "Optimal"
+          : `${overBudgetCount} Risk`,
     },
   ];
 
-  // ---- Monthly PDF summary ----
   function handleDownloadSummary() {
     const monthLabel = new Date().toLocaleDateString("en-IN", { month: "long", year: "numeric" });
     const budgetRows = budgetCategories.map((bc) => ({
@@ -228,17 +250,18 @@ function InsightsPage() {
   }
 
   return (
-    <div>
-      <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <div className="mb-2 text-[11px] font-mono uppercase tracking-[0.2em] text-signal">
-            Intelligence Engine
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-signal/30 bg-signal/10 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.2em] text-signal">
+            <Zap className="size-3" /> Bloomberg Terminal Intelligence Engine
           </div>
           <h1 className="font-display text-3xl font-bold tracking-tight lg:text-4xl">
-            Financial Analytics & Insights
+            Financial Analytics & Forecasting
           </h1>
           <p className="mt-2 text-sm text-mute">
-            Transform raw payment telemetry into actionable financial decision signals.
+            Deep liquidity projections, category drift acceleration, and statistical outlier radar.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -248,7 +271,7 @@ function InsightsPage() {
             onClick={handleDownloadSummary}
             disabled={transactions.length === 0}
           >
-            <FileDown className="mr-1.5 size-3.5" /> Monthly summary (PDF)
+            <FileDown className="mr-1.5 size-3.5" /> Monthly Summary (PDF)
           </Button>
           <div className="flex rounded-lg border border-line bg-panel p-1">
             {(["7d", "30d", "6m", "1y"] as const).map((r) => (
@@ -270,50 +293,52 @@ function InsightsPage() {
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-line bg-panel p-5">
+        <div className="rounded-xl border border-line bg-panel p-5 shadow-sm">
           <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-mute">
-            Total Volume
+            Total Telemetry Volume
           </div>
           <div className="mt-2 font-mono text-2xl font-bold">
             ₹{totalVolume.toLocaleString("en-IN")}
           </div>
-          <div className="mt-1 text-xs text-signal">From {transactions.length} transactions</div>
-        </div>
-        <div className="rounded-xl border border-line bg-panel p-5">
-          <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-mute">
-            Avg Transaction
+          <div className="mt-1 text-xs text-signal font-mono">
+            {transactions.length} records processed
           </div>
-          <div className="mt-2 font-mono text-2xl font-bold">
-            ₹{Math.round(avgTxnValue).toLocaleString("en-IN")}
-          </div>
-          <div className="mt-1 text-xs text-mute">Per transaction mean</div>
         </div>
-        <div className="rounded-xl border border-line bg-panel p-5">
+        <div className="rounded-xl border border-line bg-panel p-5 shadow-sm">
           <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-mute">
-            Total Income
+            Liquidity Pool
+          </div>
+          <div className="mt-2 font-mono text-2xl font-bold text-signal">
+            ₹{currentBalance.toLocaleString("en-IN")}
+          </div>
+          <div className="mt-1 text-xs text-mute font-mono">Real-time aggregate balance</div>
+        </div>
+        <div className="rounded-xl border border-line bg-panel p-5 shadow-sm">
+          <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-mute">
+            Monthly Inflow Velocity
           </div>
           <div className="mt-2 font-mono text-2xl font-bold text-signal">
             ₹{income.toLocaleString("en-IN")}
           </div>
           <div className="mt-1 text-xs text-signal flex items-center gap-1">
-            <TrendingUp className="size-3" /> Incoming flows
+            <TrendingUp className="size-3" /> Net cash incoming
           </div>
         </div>
-        <div className="rounded-xl border border-line bg-panel p-5">
+        <div className="rounded-xl border border-line bg-panel p-5 shadow-sm">
           <div className="text-[10px] font-mono uppercase tracking-[0.14em] text-mute">
-            Total Expenses
+            Monthly Outflow Velocity
           </div>
           <div className="mt-2 font-mono text-2xl font-bold text-warning-signal">
             ₹{expenses.toLocaleString("en-IN")}
           </div>
           <div className="mt-1 text-xs text-warning-signal flex items-center gap-1">
-            <TrendingDown className="size-3" /> Outgoing flows
+            <TrendingDown className="size-3" /> Net cash outgoing
           </div>
         </div>
       </div>
 
-      {/* Actionable Insights Section */}
-      <div className="mt-8">
+      {/* Actionable Financial Signals Grid */}
+      <div>
         <div className="mb-4 flex items-center gap-2">
           <Sparkles className="size-5 text-signal" />
           <h2 className="font-display text-xl font-bold">Actionable Financial Signals</h2>
@@ -326,8 +351,8 @@ function InsightsPage() {
                 type === "warning"
                   ? "border-warning-signal/30 bg-warning-signal/5"
                   : type === "positive"
-                    ? "border-signal/30 bg-signal/5"
-                    : "border-line bg-panel"
+                  ? "border-signal/30 bg-signal/5"
+                  : "border-line bg-panel"
               }`}
             >
               <div className="flex items-center justify-between">
@@ -336,8 +361,8 @@ function InsightsPage() {
                     type === "warning"
                       ? "text-warning-signal"
                       : type === "positive"
-                        ? "text-signal"
-                        : "text-mute"
+                      ? "text-signal"
+                      : "text-mute"
                   }`}
                 />
                 <span className="font-mono text-xs font-bold">{metric}</span>
@@ -349,16 +374,135 @@ function InsightsPage() {
         </div>
       </div>
 
-      {/* Charts Section */}
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        {/* Income vs Expenses Chart, with next-month forecast */}
-        <div className="rounded-xl border border-line bg-panel p-6">
+      {/* 90-Day Cash-Flow Projection Engine */}
+      <div className="rounded-xl border border-line bg-panel p-6 shadow-sm">
+        <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+          <div>
+            <div className="flex items-center gap-2">
+              <Clock className="size-4 text-signal" />
+              <h3 className="font-display font-bold text-lg">
+                90-Day Cash-Flow Liquidity Projection
+              </h3>
+            </div>
+            <p className="text-xs text-mute mt-1">
+              Forecasted cash balances factoring in active recurring income, fixed recurring
+              commitments, discretionary spending, and savings goal targets.
+            </p>
+          </div>
+          <div className="font-mono text-xs text-signal">
+            Target 90D Balance: ₹
+            {(
+              cashFlowTimeline[cashFlowTimeline.length - 1]?.projectedBalance || 0
+            ).toLocaleString("en-IN")}
+          </div>
+        </div>
+
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={cashFlowTimeline}>
+              <defs>
+                <linearGradient id="balanceGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#262626" />
+              <XAxis dataKey="period" stroke="#737373" fontSize={12} />
+              <YAxis stroke="#737373" fontSize={12} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#171717",
+                  borderColor: "#262626",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                }}
+                formatter={(value: any) => [`₹${Number(value).toLocaleString("en-IN")}`, "Balance"]}
+              />
+              <Area
+                type="monotone"
+                dataKey="projectedBalance"
+                stroke="#10b981"
+                strokeWidth={3}
+                fillOpacity={1}
+                fill="url(#balanceGrad)"
+                name="Projected Balance"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Category Drift Matrix & Forecasting */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Category Spending Drift Matrix */}
+        <div className="rounded-xl border border-line bg-panel p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Layers className="size-4 text-signal" />
+                <h3 className="font-display font-bold text-lg">Category Drift & Velocity</h3>
+              </div>
+              <p className="text-xs text-mute mt-1">
+                Month-over-month category spending momentum and acceleration indicators.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {categoryDrift.length === 0 ? (
+              <div className="py-8 text-center text-xs font-mono text-mute">
+                No category drift telemetry recorded yet.
+              </div>
+            ) : (
+              categoryDrift.slice(0, 5).map((drift) => (
+                <div
+                  key={drift.categoryName}
+                  className="flex items-center justify-between rounded-lg border border-line bg-raise p-3 text-xs"
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] uppercase ${
+                        drift.status === "Accelerating"
+                          ? "border border-warning-signal/30 bg-warning-signal/10 text-warning-signal"
+                          : drift.status === "Decelerating"
+                          ? "border border-signal/30 bg-signal/10 text-signal"
+                          : "border border-line bg-panel text-mute"
+                      }`}
+                    >
+                      {drift.status === "Accelerating" ? (
+                        <ArrowUpRight className="size-3" />
+                      ) : drift.status === "Decelerating" ? (
+                        <ArrowDownRight className="size-3" />
+                      ) : null}
+                      {drift.status}
+                    </span>
+                    <span className="font-medium text-ink">{drift.categoryName}</span>
+                  </div>
+                  <div className="text-right font-mono">
+                    <div
+                      className={`font-semibold ${
+                        drift.changePct > 0 ? "text-warning-signal" : "text-signal"
+                      }`}
+                    >
+                      {drift.changePct > 0 ? `+${drift.changePct}%` : `${drift.changePct}%`}
+                    </div>
+                    <div className="text-[10px] text-mute">
+                      ₹{drift.currentMonth.toLocaleString("en-IN")} vs ₹
+                      {drift.previousMonth.toLocaleString("en-IN")}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Expense Trend & Forecast */}
+        <div className="rounded-xl border border-line bg-panel p-6 shadow-sm">
           <div className="mb-4">
-            <h3 className="font-display font-bold">Expense Trend & Forecast</h3>
-            <p className="text-xs text-mute">
-              {forecast.hasEnoughData
-                ? "Actual monthly spend, with a projected next month based on a moving average."
-                : "Comparative monthly activity timeline"}
+            <h3 className="font-display font-bold text-lg">Expense Trend & Forecast</h3>
+            <p className="text-xs text-mute mt-1">
+              Historical monthly spend vs. next-month moving average prediction curve.
             </p>
           </div>
           <div className="h-64">
@@ -380,16 +524,16 @@ function InsightsPage() {
                       dataKey="actual"
                       fill="#f59e0b"
                       radius={[4, 4, 0, 0]}
-                      name="Actual expense"
+                      name="Actual Expense"
                     />
                     <Line
                       type="monotone"
                       dataKey="forecast"
                       stroke="#8b5cf6"
-                      strokeWidth={2}
+                      strokeWidth={3}
                       strokeDasharray="5 4"
-                      dot={{ r: 3 }}
-                      name="Forecast"
+                      dot={{ r: 4 }}
+                      name="Forecasted Target"
                     />
                   </>
                 ) : (
@@ -402,88 +546,69 @@ function InsightsPage() {
             </ResponsiveContainer>
           </div>
         </div>
-
-        {/* Spending Category Breakdown */}
-        <div className="rounded-xl border border-line bg-panel p-6">
-          <div className="mb-4">
-            <h3 className="font-display font-bold">Category Distribution</h3>
-            <p className="text-xs text-mute">Expenditure breakdown by merchant & category</p>
-          </div>
-          <div className="h-64 flex items-center justify-center">
-            {categoryData.length === 0 ? (
-              <div className="text-sm text-mute font-mono">No expense data available</div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
-                    paddingAngle={4}
-                    dataKey="value"
-                  >
-                    {categoryData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#171717",
-                      borderColor: "#262626",
-                      borderRadius: "8px",
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </div>
       </div>
 
-      {/* Anomaly detection */}
-      {anomalies.length > 0 && (
-        <div className="mt-8 rounded-xl border border-warning-signal/30 bg-warning-signal/5 p-6">
-          <div className="mb-4 flex items-center gap-2">
+      {/* Statistical Anomaly Detection Radar */}
+      <div className="rounded-xl border border-warning-signal/30 bg-warning-signal/5 p-6 shadow-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <Radar className="size-5 text-warning-signal" />
-            <h3 className="font-display font-bold">Unusual Transactions</h3>
+            <h3 className="font-display font-bold text-lg">
+              Statistical Anomaly Radar (Z-Score + Outliers)
+            </h3>
           </div>
-          <p className="mb-4 text-xs text-mute">
-            Transactions flagged as statistical outliers vs. your typical spend in the same
-            category.
-          </p>
+          <span className="font-mono text-xs text-warning-signal">
+            {anomalies.length} Flagged Outliers
+          </span>
+        </div>
+        <p className="mb-4 text-xs text-mute">
+          Transactions flagged by z-score statistical variance against your historical category
+          averages.
+        </p>
+
+        {anomalies.length === 0 ? (
+          <div className="rounded-lg border border-line bg-panel p-6 text-center text-xs font-mono text-signal">
+            <CheckCircle2 className="mx-auto size-6 mb-2 text-signal" />
+            All transactions are operating within normal statistical deviation bounds (Z &lt;
+            2.2σ).
+          </div>
+        ) : (
           <div className="space-y-2">
             {anomalies.slice(0, 6).map((a) => (
               <div
                 key={a.transaction.id}
-                className="flex items-center justify-between rounded-lg border border-line bg-panel px-4 py-2.5 text-xs"
+                className="flex items-center justify-between rounded-lg border border-line bg-panel px-4 py-3 text-xs"
               >
                 <div>
-                  <div className="font-medium text-ink">
-                    {a.transaction.merchant ?? "Transaction"}
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-ink">
+                      {a.transaction.merchant ?? "Transaction"}
+                    </span>
+                    <span
+                      className={`rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase ${
+                        a.severity === "High"
+                          ? "bg-danger-signal/20 text-danger-signal"
+                          : "bg-warning-signal/20 text-warning-signal"
+                      }`}
+                    >
+                      {a.severity}
+                    </span>
                   </div>
-                  <div className="text-mute">
-                    {a.categoryLabel} ·{" "}
-                    {new Date(a.transaction.transaction_date).toLocaleDateString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                    })}
+                  <div className="text-mute text-[11px] mt-0.5">
+                    {a.categoryLabel} · {a.reason}
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="font-mono font-semibold text-warning-signal">
                     ₹{Number(a.transaction.amount).toLocaleString("en-IN")}
                   </div>
-                  <div className="font-mono text-[10px] text-mute">
-                    {a.zScore.toFixed(1)}σ above usual
-                  </div>
+                  <div className="font-mono text-[10px] text-mute">{a.zScore}σ deviation</div>
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
