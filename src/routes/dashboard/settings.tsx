@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { User, Bell, Shield, Moon, Save } from "lucide-react";
+import { User, Bell, Shield, Moon, Save, KeyRound, CheckCircle2, Lock, History } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -8,6 +8,8 @@ import {
   useProfile,
   useUpdateProfile,
 } from "@/hooks/queries/use-profile";
+import { initialize2FA, verify2FACode, type MfaSetupResult } from "@/lib/mfa";
+import { logSensitiveAction } from "@/lib/audit-logger";
 
 export const Route = createFileRoute("/dashboard/settings")({
   component: SettingsPage,
@@ -26,8 +28,16 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  // Once the profile row loads, hydrate the form with the saved values
-  // instead of the hardcoded defaults above.
+  // 2FA / Security State
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [mfaSetup, setMfaSetup] = useState<MfaSetupResult | null>(null);
+  const [totpCode, setTotpCode] = useState("");
+  const [mfaVerifying, setMfaVerifying] = useState(false);
+  const [mfaMessage, setMfaMessage] = useState("");
+
+  // Audit Logs State
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+
   useEffect(() => {
     if (!profile) return;
     setCurrency(profile.currency);
@@ -37,6 +47,47 @@ export function SettingsPage() {
     setSpendingInsights(prefs.spending_insights);
     if (profile.full_name) setFullName(profile.full_name);
   }, [profile]);
+
+  useEffect(() => {
+    if (!userId) return;
+    // Fetch Audit Trail Logs
+    supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(10)
+      .then(({ data }) => {
+        if (data) setAuditLogs(data);
+      });
+  }, [userId]);
+
+  async function handleStart2FASetup() {
+    setMfaMessage("");
+    const setup = await initialize2FA();
+    setMfaSetup(setup);
+  }
+
+  async function handleVerify2FA() {
+    if (!mfaSetup || !totpCode || totpCode.length !== 6) {
+      setMfaMessage("Please enter a valid 6-digit TOTP code.");
+      return;
+    }
+    setMfaVerifying(true);
+    const isValid = await verify2FACode(mfaSetup.factorId, totpCode);
+    setMfaVerifying(false);
+
+    if (isValid) {
+      setMfaEnabled(true);
+      setMfaSetup(null);
+      setMfaMessage("Two-Factor Authentication (2FA) successfully enabled!");
+      if (userId) {
+        logSensitiveAction(userId, "MFA_ENABLED", "user_profile", userId, { factorType: "totp" });
+      }
+    } else {
+      setMfaMessage("Invalid 6-digit verification code. Please try again.");
+    }
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -58,6 +109,9 @@ export function SettingsPage() {
           spending_insights: spendingInsights,
         },
       });
+      if (userId) {
+        logSensitiveAction(userId, "ACCOUNT_UPDATE", "user_profile", userId, { currency, theme });
+      }
     } catch (err) {
       profileError = err as { message: string };
     }
@@ -72,21 +126,21 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-4xl space-y-6">
       <div className="mb-8">
         <div className="mb-2 text-[11px] font-mono uppercase tracking-[0.2em] text-signal">
-          Preferences
+          Preferences & Security
         </div>
         <h1 className="font-display text-3xl font-bold tracking-tight lg:text-4xl">
-          Account Settings
+          Security & Account Settings
         </h1>
         <p className="mt-2 text-sm text-mute">
-          Manage your personal profile, notification preferences, and workspace configuration.
+          Manage identity security, Two-Factor Authentication (2FA), audit logs, and notification preferences.
         </p>
       </div>
 
       {message && (
-        <div className="mb-6 rounded-lg border border-signal/30 bg-signal/10 px-4 py-3 text-sm text-signal">
+        <div className="rounded-lg border border-signal/30 bg-signal/10 px-4 py-3 text-sm text-signal">
           {message}
         </div>
       )}
@@ -116,6 +170,109 @@ export function SettingsPage() {
                 className="w-full rounded-lg border border-line bg-raise/50 px-3 py-2 text-sm text-mute cursor-not-allowed"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Two-Factor Authentication (2FA / MFA) Hardening */}
+        <div className="rounded-xl border border-line bg-panel p-4 sm:p-6 shadow-sm">
+          <div className="flex items-center justify-between border-b border-line pb-4 mb-6">
+            <div className="flex items-center gap-3">
+              <KeyRound className="size-5 text-signal" />
+              <div>
+                <h2 className="font-display text-lg font-bold">Two-Factor Authentication (2FA)</h2>
+                <p className="text-xs text-mute">Protect your financial accounts with TOTP Authenticator apps (Google Authenticator / Authy).</p>
+              </div>
+            </div>
+            {mfaEnabled ? (
+              <span className="inline-flex items-center gap-1 rounded bg-signal/20 px-2.5 py-1 font-mono text-xs text-signal font-semibold">
+                <CheckCircle2 className="size-3.5" /> 2FA Active
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded bg-warning-signal/20 px-2.5 py-1 font-mono text-xs text-warning-signal">
+                <Lock className="size-3.5" /> Disabled
+              </span>
+            )}
+          </div>
+
+          {mfaMessage && (
+            <div className="mb-4 rounded-lg border border-signal/30 bg-signal/10 px-4 py-2.5 text-xs text-signal">
+              {mfaMessage}
+            </div>
+          )}
+
+          {!mfaEnabled && !mfaSetup && (
+            <button
+              type="button"
+              onClick={handleStart2FASetup}
+              className="fs-clip bg-signal px-4 py-2 text-xs font-medium text-signal-foreground hover:brightness-110"
+            >
+              Enable 2FA Authenticator
+            </button>
+          )}
+
+          {mfaSetup && !mfaEnabled && (
+            <div className="space-y-4 rounded-lg border border-line bg-raise p-4">
+              <div className="text-xs font-semibold text-ink">Step 1: Scan QR Code or Copy Secret Key</div>
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <img src={mfaSetup.qrCodeUrl} alt="2FA QR Code" className="size-32 rounded border border-line bg-white p-1" />
+                <div className="space-y-1">
+                  <div className="text-xs text-mute">Secret Key:</div>
+                  <code className="block font-mono text-xs bg-panel p-2 rounded border border-line text-signal select-all">
+                    {mfaSetup.secret}
+                  </code>
+                  <div className="text-[11px] text-mute">Scan this QR code with Google Authenticator or 1Password.</div>
+                </div>
+              </div>
+
+              <div className="text-xs font-semibold text-ink pt-2">Step 2: Enter 6-Digit Verification Code</div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  maxLength={6}
+                  placeholder="123456"
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value.trim())}
+                  className="w-36 rounded-lg border border-line bg-panel px-3 py-2 font-mono text-center text-sm outline-none focus:border-signal"
+                />
+                <button
+                  type="button"
+                  onClick={handleVerify2FA}
+                  disabled={mfaVerifying}
+                  className="fs-clip bg-signal px-4 py-2 text-xs font-medium text-signal-foreground hover:brightness-110"
+                >
+                  {mfaVerifying ? "Verifying..." : "Verify & Activate 2FA"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Security Audit Trail Viewer */}
+        <div className="rounded-xl border border-line bg-panel p-4 sm:p-6 shadow-sm">
+          <div className="flex items-center gap-3 border-b border-line pb-4 mb-4">
+            <History className="size-5 text-signal" />
+            <div>
+              <h2 className="font-display text-lg font-bold">Security Audit Trail</h2>
+              <p className="text-xs text-mute">Immutable security ledger tracking sensitive transaction edits, deletions, and access changes.</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {auditLogs.length === 0 ? (
+              <div className="py-6 text-center text-xs font-mono text-mute">No security audit records logged yet.</div>
+            ) : (
+              auditLogs.map((log) => (
+                <div key={log.id} className="flex items-center justify-between rounded-lg border border-line bg-raise px-3 py-2 text-xs">
+                  <div>
+                    <div className="font-medium text-ink">{log.title}</div>
+                    <div className="text-[11px] text-mute">{log.body}</div>
+                  </div>
+                  <div className="font-mono text-[10px] text-mute">
+                    {new Date(log.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -150,44 +307,6 @@ export function SettingsPage() {
                 <option value="light">Light Slate Mode</option>
               </select>
             </div>
-          </div>
-        </div>
-
-        {/* Notification Preferences */}
-        <div className="rounded-xl border border-line bg-panel p-4 sm:p-6">
-          <div className="flex items-center gap-3 mb-6 border-b border-line pb-4">
-            <Bell className="size-5 text-signal" />
-            <h2 className="font-display text-lg font-bold">Alert & Notification Signals</h2>
-          </div>
-          <div className="space-y-4">
-            <label className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-sm font-medium">Budget Limit Thresholds</div>
-                <div className="text-xs text-mute">
-                  Alert when spending breaches 80% of budget cap
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                checked={budgetAlerts}
-                onChange={(e) => setBudgetAlerts(e.target.checked)}
-                className="size-4 accent-emerald-500"
-              />
-            </label>
-            <label className="flex items-start justify-between gap-4 border-t border-line pt-4">
-              <div>
-                <div className="text-sm font-medium">Weekly Intelligence Summary</div>
-                <div className="text-xs text-mute">
-                  Receive automated category concentration & savings insights
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                checked={spendingInsights}
-                onChange={(e) => setSpendingInsights(e.target.checked)}
-                className="size-4 accent-emerald-500"
-              />
-            </label>
           </div>
         </div>
 

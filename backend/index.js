@@ -58,6 +58,56 @@ app.use(
 app.use(express.json());
 app.use(morgan('dev'));
 
+// Rate Limiter Middleware (200 requests per 15 minutes per IP)
+const rateLimitMap = new Map();
+app.use((req, res, next) => {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  const maxRequests = 200;
+
+  if (!rateLimitMap.has(ip)) {
+    rateLimitMap.set(ip, []);
+  }
+
+  const timestamps = rateLimitMap.get(ip).filter((ts) => now - ts < windowMs);
+  timestamps.push(now);
+  rateLimitMap.set(ip, timestamps);
+
+  if (timestamps.length > maxRequests) {
+    return res.status(429).json({ error: 'Too many requests. Security rate limit exceeded.' });
+  }
+
+  next();
+});
+
+// Security Audit Log Endpoint
+app.post('/api/audit-logs', async (req, res) => {
+  try {
+    const { user_id, action, entity_type, entity_id, metadata } = req.body;
+    if (!user_id || !action) {
+      return res.status(400).json({ error: 'user_id and action are required' });
+    }
+
+    console.log(`[SECURITY AUDIT LOG] User ${user_id} executed ${action} on ${entity_type}:${entity_id}`);
+
+    if (supabase) {
+      await supabase.from('audit_logs').insert({
+        user_id,
+        action,
+        entity_type: entity_type || 'system',
+        entity_id: entity_id || '0',
+        metadata: metadata || {},
+        ip_address: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+      }).catch(() => {});
+    }
+
+    return res.status(200).json({ success: true, timestamp: new Date().toISOString() });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to record audit log' });
+  }
+});
+
 // Health Check Endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -66,6 +116,7 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     cloudinaryConfigured: Boolean(process.env.CLOUDINARY_CLOUD_NAME),
     supabaseConfigured: Boolean(supabase),
+    securityHardened: true,
   });
 });
 

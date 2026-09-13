@@ -642,6 +642,42 @@ var FileText = createLucideIcon("file-text", [
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var History = createLucideIcon("history", [
+	["path", {
+		d: "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8",
+		key: "1357e3"
+	}],
+	["path", {
+		d: "M3 3v5h5",
+		key: "1xhq8a"
+	}],
+	["path", {
+		d: "M12 7v5l4 2",
+		key: "1fdv2h"
+	}]
+]);
+/**
+* @license lucide-react v0.575.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var KeyRound = createLucideIcon("key-round", [["path", {
+	d: "M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z",
+	key: "1s6t7t"
+}], ["circle", {
+	cx: "16.5",
+	cy: "7.5",
+	r: ".5",
+	fill: "currentColor",
+	key: "w0ekpg"
+}]]);
+/**
+* @license lucide-react v0.575.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var Landmark = createLucideIcon("landmark", [
 	["path", {
 		d: "M10 18v-7",
@@ -774,6 +810,24 @@ var LockKeyhole = createLucideIcon("lock-keyhole", [
 		key: "1pqi11"
 	}]
 ]);
+/**
+* @license lucide-react v0.575.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var Lock = createLucideIcon("lock", [["rect", {
+	width: "18",
+	height: "11",
+	x: "3",
+	y: "11",
+	rx: "2",
+	ry: "2",
+	key: "1w4ew1"
+}], ["path", {
+	d: "M7 11V7a5 5 0 0 1 10 0v4",
+	key: "fwvmzm"
+}]]);
 /**
 * @license lucide-react v0.575.0 - ISC
 *
@@ -1303,4 +1357,4 @@ var Zap = createLucideIcon("zap", [["path", {
 	key: "1xq2db"
 }]]);
 //#endregion
-export { CalendarClock as $, Lightbulb as A, CreditCard as B, PiggyBank as C, Mail as D, Menu as E, FileDown as F, ChevronUp as G, Clock as H, Eye as I, ChevronDown as J, ChevronRight as K, EyeOff as L, Layers as M, Landmark as N, LogOut as O, FileText as P, ChartArea as Q, Download as R, Plus as S, Moon as T, CircleDollarSign as U, Coins as V, CircleCheck as W, ChartPie as X, Check as Y, ChartColumn as Z, Search as _, Users as a, ArrowLeft as at, RefreshCw as b, Upload as c, Trash2 as d, Calculator as et, Target as f, Settings as g, ShieldAlert as h, WalletCards as i, ArrowRight as it, LayoutDashboard as j, LockKeyhole as k, TrendingUp as l, ShieldCheck as m, X as n, Bell as nt, User as o, ArrowDownRight as ot, Sparkles as p, ChevronLeft as q, Wallet as r, ArrowUpRight as rt, UserRound as s, Activity as st, Zap as t, Building2 as tt, TrendingDown as u, Save as v, Pencil as w, Radar as x, Repeat as y, Database as z };
+export { ChartPie as $, LockKeyhole as A, EyeOff as B, PiggyBank as C, Mail as D, Menu as E, KeyRound as F, Clock as G, Database as H, History as I, ChevronUp as J, CircleDollarSign as K, FileText as L, LayoutDashboard as M, Layers as N, LogOut as O, Landmark as P, Check as Q, FileDown as R, Plus as S, Moon as T, CreditCard as U, Download as V, Coins as W, ChevronLeft as X, ChevronRight as Y, ChevronDown as Z, Search as _, Users as a, Bell as at, RefreshCw as b, Upload as c, ArrowLeft as ct, Trash2 as d, ChartColumn as et, Target as f, Settings as g, ShieldAlert as h, WalletCards as i, Building2 as it, Lightbulb as j, Lock as k, TrendingUp as l, ArrowDownRight as lt, ShieldCheck as m, X as n, CalendarClock as nt, User as o, ArrowUpRight as ot, Sparkles as p, CircleCheck as q, Wallet as r, Calculator as rt, UserRound as s, ArrowRight as st, Zap as t, ChartArea as tt, TrendingDown as u, Activity as ut, Save as v, Pencil as w, Radar as x, Repeat as y, Eye as z };
