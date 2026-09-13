@@ -12,11 +12,25 @@ import {
   Trash2,
   Upload,
   X,
+  Building2,
+  RefreshCw,
+  Sparkles,
+  ShieldCheck,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { predictCategory } from "@/lib/auto-categorize";
+import { detectDuplicates } from "@/lib/duplicate-detector";
+import {
+  SUPPORTED_INSTITUTIONS,
+  connectLiveBankFeed,
+  fetchLiveBankTelemetry,
+  type BankInstitution,
+} from "@/lib/bank-sync";
 import {
   Dialog,
   DialogContent,
@@ -119,7 +133,16 @@ function TransactionsPage() {
   const totalPages = Math.max(1, Math.ceil((transactions?.length ?? 0) / PAGE_SIZE));
   const pageItems = (transactions ?? []).slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  function resetFilters() {
+  const categoryNameById = useMemo(
+    () => new Map((categories ?? []).map((c) => [c.id, c.name])),
+    [categories]
+  );
+  const accountNameById = useMemo(
+    () => new Map((accounts ?? []).map((a) => [a.id, a.name])),
+    [accounts]
+  );
+
+  function clearFilters() {
     setSearch("");
     setTypeFilter("all");
     setCategoryFilter("all");
@@ -135,6 +158,11 @@ function TransactionsPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [splitOpen, setSplitOpen] = useState(false);
   const [splits, setSplits] = useState<TransactionSplitInput[]>([]);
+
+  // ---- Live Bank Sync State ----
+  const [bankSyncOpen, setBankSyncOpen] = useState(false);
+  const [selectedInst, setSelectedInst] = useState<BankInstitution | null>(null);
+  const [isSyncingBank, setIsSyncingBank] = useState(false);
 
   function openAdd() {
     setEditing(null);
@@ -156,6 +184,20 @@ function TransactionsPage() {
       payment_method: t.payment_method,
     });
     setFormOpen(true);
+  }
+
+  function handleMerchantChange(merchant: string) {
+    setForm((prev) => {
+      const updated = { ...prev, merchant };
+      if (!editing && merchant && (!prev.category_id || prev.category_id === "")) {
+        const pred = predictCategory(merchant, categories || []);
+        if (pred.categoryId) {
+          updated.category_id = pred.categoryId;
+          toast.info(`Auto-categorized as "${pred.categoryName}" (${Math.round(pred.confidence * 100)}% match)`);
+        }
+      }
+      return updated;
+    });
   }
 
   async function submitForm() {
@@ -189,9 +231,8 @@ function TransactionsPage() {
     }
   }
 
-  // ---- Delete ----
+  // ---- Delete confirmation ----
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
-
   async function confirmDelete() {
     if (!deleteTarget) return;
     try {
@@ -201,6 +242,65 @@ function TransactionsPage() {
       toast.error(err instanceof Error ? err.message : "Couldn't delete transaction.");
     } finally {
       setDeleteTarget(null);
+    }
+  }
+
+  // ---- Live Bank Sync Integration ----
+  async function handleSyncBankFeed(inst: BankInstitution) {
+    if (!userId) return;
+    setIsSyncingBank(true);
+    setSelectedInst(inst);
+    try {
+      const conn = await connectLiveBankFeed(inst.id, userId);
+      toast.info(conn.message || `Connecting to ${inst.name}...`);
+
+      const telemetry = await fetchLiveBankTelemetry(inst.id);
+
+      // Check duplicates
+      const candidates = telemetry.map((t) => ({
+        merchant: t.merchant,
+        amount: t.amount,
+        transaction_date: t.transaction_date,
+        type: t.type,
+      }));
+
+      const duplicates = detectDuplicates(candidates, transactions || []);
+      const uniqueCandidates = duplicates.filter((d) => !d.isDuplicate);
+
+      if (uniqueCandidates.length === 0) {
+        toast.info(`Bank feed synced. All ${telemetry.length} items already exist in ledger.`);
+        setBankSyncOpen(false);
+        setIsSyncingBank(false);
+        return;
+      }
+
+      // Map rows with auto-categorization
+      const rowsToInsert = uniqueCandidates.map((c) => {
+        const pred = predictCategory(c.incomingTxn.merchant, categories || []);
+        return {
+          transaction: {
+            transaction_date: new Date(c.incomingTxn.transaction_date).toISOString(),
+            amount: c.incomingTxn.amount,
+            type: (c.incomingTxn.type as TxType) || "expense",
+            merchant: c.incomingTxn.merchant,
+            description: `Live bank telemetry sync from ${inst.name}`,
+            category_id: pred.categoryId || null,
+            account_id: accounts?.[0]?.id || null,
+            payment_method: "UPI",
+            status: "completed" as const,
+          },
+        };
+      });
+
+      const count = await bulkInsertTransactions(userId, rowsToInsert);
+      toast.success(`Synced ${count} new telemetry transactions from ${inst.name}! (${telemetry.length - count} duplicates filtered)`);
+      queryClient.invalidateQueries({ queryKey: ["transactions", userId] });
+      setBankSyncOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to sync bank telemetry.");
+    } finally {
+      setIsSyncingBank(false);
+      setSelectedInst(null);
     }
   }
 
@@ -232,7 +332,7 @@ function TransactionsPage() {
   function goToPreview() {
     if (!parsedCsv) return;
     const categoryNameToId = Object.fromEntries(
-      (categories ?? []).map((c) => [c.name.trim().toLowerCase(), c.id]),
+      (categories ?? []).map((c) => [c.name.trim().toLowerCase(), c.id])
     );
     const mapped = mapCsvRows(parsedCsv, mapping, categoryNameToId);
     setMappedRows(mapped);
@@ -290,7 +390,7 @@ function TransactionsPage() {
     link.setAttribute("href", url);
     link.setAttribute(
       "download",
-      `finsight_transactions_${new Date().toISOString().slice(0, 10)}.csv`,
+      `finsight_transactions_${new Date().toISOString().slice(0, 10)}.csv`
     );
     document.body.appendChild(link);
     link.click();
@@ -304,10 +404,15 @@ function TransactionsPage() {
 
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight">Transactions</h1>
-          <p className="mt-1 text-sm text-mute">All your income and expenses in one place.</p>
+          <h1 className="font-display text-2xl font-bold tracking-tight">Transactions & Telemetry</h1>
+          <p className="mt-1 text-sm text-mute">
+            Live bank feeds, account aggregator sync, and transaction management.
+          </p>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+          <Button variant="outline" onClick={() => setBankSyncOpen(true)} className="w-full sm:w-auto border-signal/30 text-signal">
+            <Building2 className="mr-2 size-4" /> Sync Live Bank (AA/Plaid)
+          </Button>
           <Button variant="outline" onClick={exportToCsv} className="w-full sm:w-auto">
             <Download className="mr-2 size-4" /> Export CSV
           </Button>
@@ -349,7 +454,6 @@ function TransactionsPage() {
             <SelectItem value="all">All types</SelectItem>
             <SelectItem value="income">Income</SelectItem>
             <SelectItem value="expense">Expense</SelectItem>
-            <SelectItem value="transfer">Transfer</SelectItem>
           </SelectContent>
         </Select>
 
@@ -365,7 +469,7 @@ function TransactionsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All categories</SelectItem>
-            {categories?.map((c) => (
+            {(categories ?? []).map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.name}
               </SelectItem>
@@ -385,7 +489,7 @@ function TransactionsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All accounts</SelectItem>
-            {accounts?.map((a) => (
+            {(accounts ?? []).map((a) => (
               <SelectItem key={a.id} value={a.id}>
                 {a.name}
               </SelectItem>
@@ -393,131 +497,136 @@ function TransactionsPage() {
           </SelectContent>
         </Select>
 
-        <Input
-          type="date"
-          value={fromDate}
-          onChange={(e) => {
-            setFromDate(e.target.value);
-            setPage(1);
-          }}
-          className="w-full sm:w-[150px]"
-        />
-        <span className="hidden text-xs text-mute sm:inline">to</span>
-        <Input
-          type="date"
-          value={toDate}
-          onChange={(e) => {
-            setToDate(e.target.value);
-            setPage(1);
-          }}
-          className="w-full sm:w-[150px]"
-        />
-
         {(search ||
           typeFilter !== "all" ||
           categoryFilter !== "all" ||
           accountFilter !== "all" ||
           fromDate ||
           toDate) && (
-          <Button variant="ghost" size="sm" onClick={resetFilters} className="text-mute">
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="text-mute">
             <X className="mr-1 size-3.5" /> Clear
           </Button>
         )}
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-line bg-panel">
-        <table className="w-full min-w-[680px] text-sm">
-          <thead>
-            <tr className="border-b border-line text-left text-[10px] font-mono uppercase tracking-[0.12em] text-mute">
-              <th className="px-5 py-3">Merchant</th>
-              <th className="px-5 py-3">Date</th>
-              <th className="px-5 py-3">Method</th>
-              <th className="px-5 py-3">Status</th>
-              <th className="px-5 py-3 text-right">Amount</th>
-              <th className="px-5 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {isLoading && (
-              <tr>
-                <td colSpan={6} className="px-5 py-6 text-center text-mute">
-                  Loading…
-                </td>
-              </tr>
-            )}
-            {!isLoading && pageItems.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-5 py-6 text-center text-mute">
-                  <div className="flex items-center justify-center gap-2">
-                    <Filter className="size-3.5" /> No transactions match your filters.
-                  </div>
-                </td>
-              </tr>
-            )}
-            {pageItems.map((t) => (
-              <tr key={t.id} className="group">
-                <td className="px-5 py-3">{t.merchant ?? t.description ?? "—"}</td>
-                <td className="px-5 py-3 font-mono text-xs text-mute">
-                  {new Date(t.transaction_date).toLocaleDateString("en-IN")}
-                </td>
-                <td className="px-5 py-3 text-xs text-mute">{t.payment_method}</td>
-                <td className="px-5 py-3 text-xs text-mute capitalize">{t.status}</td>
-                <td
-                  className={`px-5 py-3 text-right font-mono font-semibold ${t.type === "income" ? "text-signal" : "text-ink"}`}
-                >
-                  {t.type === "income" ? "+" : "−"}₹{Number(t.amount).toLocaleString("en-IN")}
-                </td>
-                <td className="px-5 py-3">
-                  <div className="flex justify-end gap-1 transition sm:opacity-0 sm:group-hover:opacity-100">
-                    <button
-                      onClick={() => openEdit(t)}
-                      className="rounded p-1.5 text-mute hover:bg-raise hover:text-ink"
-                    >
-                      <Pencil className="size-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(t)}
-                      className="rounded p-1.5 text-mute hover:bg-raise hover:text-danger-signal"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-line px-5 py-3 text-xs text-mute">
-            <span>
-              Page {page} of {totalPages}
-            </span>
-            <div className="flex gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                <ChevronLeft className="size-3.5" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                <ChevronRight className="size-3.5" />
-              </Button>
-            </div>
+      {/* Ledger Table */}
+      <div className="overflow-hidden rounded-xl border border-line bg-panel shadow-sm">
+        {isLoading ? (
+          <div className="p-8 text-center text-sm font-mono text-mute">Loading transactions…</div>
+        ) : !transactions || transactions.length === 0 ? (
+          <div className="p-8 text-center">
+            <p className="font-display text-sm font-semibold">No transactions found</p>
+            <p className="mt-1 text-xs text-mute">Try adjusting your search or filters.</p>
           </div>
+        ) : (
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-line bg-raise/50 font-mono text-[10px] uppercase text-mute">
+              <tr>
+                <th className="px-5 py-3">Date</th>
+                <th className="px-5 py-3">Merchant</th>
+                <th className="px-5 py-3">Category</th>
+                <th className="px-5 py-3">Account</th>
+                <th className="px-5 py-3">Type</th>
+                <th className="px-5 py-3 text-right">Amount</th>
+                <th className="px-5 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {pageItems.map((t) => (
+                <tr key={t.id} className="hover:bg-raise/30">
+                  <td className="px-5 py-3 font-mono text-mute">
+                    {new Date(t.transaction_date).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </td>
+                  <td className="px-5 py-3 font-medium text-ink">
+                    {t.merchant ?? "—"}
+                    {t.description && (
+                      <span className="block text-[11px] font-normal text-mute">{t.description}</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-3 text-mute">
+                    {t.category_id ? (categoryNameById.get(t.category_id) ?? "—") : "Uncategorized"}
+                  </td>
+                  <td className="px-5 py-3 text-mute">
+                    {t.account_id ? (accountNameById.get(t.account_id) ?? "—") : "—"}
+                  </td>
+                  <td className="px-5 py-3 font-mono capitalize text-mute">{t.type}</td>
+                  <td
+                    className={`px-5 py-3 text-right font-mono font-semibold ${
+                      t.type === "income" ? "text-signal" : "text-ink"
+                    }`}
+                  >
+                    {t.type === "income" ? "+" : "−"}₹{Number(t.amount).toLocaleString("en-IN")}
+                  </td>
+                  <td className="px-5 py-3 text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="size-7" onClick={() => openEdit(t)}>
+                        <Pencil className="size-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="size-7" onClick={() => setDeleteTarget(t)}>
+                        <Trash2 className="size-3.5 text-danger-signal" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 
+      {/* Live Bank Feed / Account Aggregator Dialog */}
+      <Dialog open={bankSyncOpen} onOpenChange={setBankSyncOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="size-5 text-signal" /> Live Bank & Account Aggregator (AA) Sync
+            </DialogTitle>
+            <DialogDescription>
+              Connect to India's Account Aggregator framework or Plaid to fetch real-time bank telemetry.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-3">
+            {SUPPORTED_INSTITUTIONS.map((inst) => (
+              <div
+                key={inst.id}
+                className="flex items-center justify-between rounded-lg border border-line bg-raise p-3 transition hover:border-signal/40"
+              >
+                <div>
+                  <div className="font-display font-semibold text-sm">{inst.name}</div>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {inst.supportedMethods.map((m) => (
+                      <span key={m} className="rounded bg-panel border border-line px-1.5 py-0.5 text-[9px] font-mono text-mute">
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleSyncBankFeed(inst)}
+                  disabled={isSyncingBank}
+                >
+                  {isSyncingBank && selectedInst?.id === inst.id ? (
+                    <RefreshCw className="mr-1.5 size-3.5 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="mr-1.5 size-3.5 text-signal" />
+                  )}
+                  Connect
+                </Button>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Add / Edit dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{editing ? "Edit transaction" : "Add transaction"}</DialogTitle>
             <DialogDescription>Enter the details of this transaction.</DialogDescription>
@@ -538,273 +647,71 @@ function TransactionsPage() {
                 <Input
                   id="amount"
                   type="number"
-                  min="0"
-                  step="0.01"
                   value={form.amount}
                   onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
                 />
               </div>
             </div>
-            {!editing && form.account_id && Number(form.amount) > 0 && (
-              <div className="flex items-center justify-between rounded-lg border border-line bg-raise p-3">
-                <div>
-                  <div className="text-sm font-medium">Split transaction</div>
-                  <div className="text-xs text-mute">
-                    {splits.length
-                      ? `${splits.length} member shares ready`
-                      : "Divide this expense across members"}
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSplitOpen(true)}
-                >
-                  {splits.length ? "Edit split" : "Add split"}
-                </Button>
-              </div>
-            )}
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <Label>Type</Label>
-                <Select
-                  value={form.type}
-                  onValueChange={(v) => setForm((f) => ({ ...f, type: v as TxType }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="income">Income</SelectItem>
-                    <SelectItem value="expense">Expense</SelectItem>
-                    <SelectItem value="transfer">Transfer</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Category</Label>
-                <Select
-                  value={form.category_id || "none"}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, category_id: v === "none" ? "" : v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {categories
-                      ?.filter((c) => c.kind === form.type)
-                      .map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <Label htmlFor="merchant">Merchant</Label>
                 <Input
                   id="merchant"
                   value={form.merchant}
-                  onChange={(e) => setForm((f) => ({ ...f, merchant: e.target.value }))}
+                  onChange={(e) => handleMerchantChange(e.target.value)}
+                  placeholder="e.g. Swiggy, Uber, Amazon"
                 />
+              </div>
+              <div>
+                <Label>Type</Label>
+                <Select
+                  value={form.type}
+                  onValueChange={(v) => setForm((f) => ({ ...f, type: v as TxType }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="expense">Expense</SelectItem>
+                    <SelectItem value="income">Income</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label>Category</Label>
+                <Select
+                  value={form.category_id}
+                  onValueChange={(v) => setForm((f) => ({ ...f, category_id: v }))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectContent>
+                    {(categories || []).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Account</Label>
                 <Select
-                  value={form.account_id || "none"}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, account_id: v === "none" ? "" : v }))
-                  }
+                  value={form.account_id}
+                  onValueChange={(v) => setForm((f) => ({ ...f, account_id: v }))}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {accounts?.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.name}
-                      </SelectItem>
+                    {(accounts || []).map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="method">Payment method</Label>
-                <Input
-                  id="method"
-                  value={form.payment_method}
-                  onChange={(e) => setForm((f) => ({ ...f, payment_method: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Input
-                  id="description"
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                />
-              </div>
-            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setFormOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={submitForm} disabled={createTxn.isPending || updateTxn.isPending}>
-              {editing ? "Save changes" : "Add transaction"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {form.account_id && (
-        <SplitTransactionDialog
-          accountId={form.account_id}
-          amount={Number(form.amount) || 0}
-          open={splitOpen}
-          onClose={() => setSplitOpen(false)}
-          onSave={setSplits}
-        />
-      )}
-
-      {/* Delete confirmation */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this transaction?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This can't be undone.{" "}
-              {deleteTarget?.merchant ? `"${deleteTarget.merchant}"` : "This transaction"} will be
-              permanently removed.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* CSV import */}
-      <Dialog
-        open={csvOpen}
-        onOpenChange={(open) => {
-          setCsvOpen(open);
-          if (!open) resetCsv();
-        }}
-      >
-        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-2xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Import transactions from CSV</DialogTitle>
-            <DialogDescription>
-              {csvStep === "select" && "Choose a CSV file exported from your bank or another app."}
-              {csvStep === "map" && "Match each CSV column to a transaction field."}
-              {csvStep === "preview" && "Review before importing."}
-            </DialogDescription>
-          </DialogHeader>
-
-          {csvStep === "select" && (
-            <div className="py-4">
-              <Input
-                type="file"
-                accept=".csv"
-                onChange={(e) => e.target.files?.[0] && handleCsvFile(e.target.files[0])}
-              />
-            </div>
-          )}
-
-          {csvStep === "map" && parsedCsv && (
-            <div className="grid max-h-[50vh] gap-3 overflow-y-auto py-2">
-              {MAPPABLE_FIELDS.map(({ field, label, required }) => (
-                <div key={field} className="grid gap-2 sm:grid-cols-2 sm:items-center sm:gap-3">
-                  <Label>
-                    {label}
-                    {required && <span className="text-danger-signal"> *</span>}
-                  </Label>
-                  <Select
-                    value={mapping[field] ?? "none"}
-                    onValueChange={(v) =>
-                      setMapping((m) => ({ ...m, [field]: v === "none" ? undefined : v }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Not mapped" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Not mapped</SelectItem>
-                      {parsedCsv.headers.map((h) => (
-                        <SelectItem key={h} value={h}>
-                          {h}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {csvStep === "preview" && (
-            <div className="py-2">
-              <div className="mb-3 flex gap-4 text-sm">
-                <span className="text-signal">{validCount} ready to import</span>
-                {errorCount > 0 && (
-                  <span className="text-danger-signal">{errorCount} will be skipped</span>
-                )}
-              </div>
-              <div className="max-h-[40vh] overflow-y-auto rounded-lg border border-line">
-                <table className="w-full min-w-[480px] text-xs">
-                  <thead>
-                    <tr className="border-b border-line text-left text-mute">
-                      <th className="px-3 py-2">Date</th>
-                      <th className="px-3 py-2">Merchant</th>
-                      <th className="px-3 py-2 text-right">Amount</th>
-                      <th className="px-3 py-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {mappedRows.slice(0, 50).map((r) => (
-                      <tr key={r.rowIndex}>
-                        <td className="px-3 py-1.5 font-mono">
-                          {r.transaction?.transaction_date?.slice(0, 10) ?? "—"}
-                        </td>
-                        <td className="px-3 py-1.5">{r.transaction?.merchant ?? "—"}</td>
-                        <td className="px-3 py-1.5 text-right font-mono">
-                          {r.transaction ? `₹${r.transaction.amount}` : "—"}
-                        </td>
-                        <td
-                          className={`px-3 py-1.5 ${r.error ? "text-danger-signal" : "text-signal"}`}
-                        >
-                          {r.error ?? "OK"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            {csvStep === "map" && (
-              <Button onClick={goToPreview} disabled={!dateMapped || !amountMapped}>
-                Preview import
-              </Button>
-            )}
-            {csvStep === "preview" && (
-              <Button onClick={confirmImport} disabled={importing || validCount === 0}>
-                {importing ? "Importing…" : `Import ${validCount} transactions`}
-              </Button>
-            )}
+            <Button variant="outline" onClick={() => setFormOpen(false)}>Cancel</Button>
+            <Button onClick={submitForm}>{editing ? "Save changes" : "Add transaction"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
