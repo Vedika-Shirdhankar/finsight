@@ -16,6 +16,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardAccountsRouteImport } from './routes/dashboard/accounts'
+import { Route as DashboardAuditLogsRouteImport } from './routes/dashboard/audit-logs'
 import { Route as DashboardBudgetsRouteImport } from './routes/dashboard/budgets'
 import { Route as DashboardGoalsRouteImport } from './routes/dashboard/goals'
 import { Route as DashboardInsightsRouteImport } from './routes/dashboard/insights'
@@ -58,6 +59,11 @@ const DashboardAccountsRoute = DashboardAccountsRouteImport.update({
   path: '/accounts',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardAuditLogsRoute = DashboardAuditLogsRouteImport.update({
+  id: '/audit-logs',
+  path: '/audit-logs',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardBudgetsRoute = DashboardBudgetsRouteImport.update({
   id: '/budgets',
   path: '/budgets',
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/dashboard/accounts': typeof DashboardAccountsRoute
+  '/dashboard/audit-logs': typeof DashboardAuditLogsRoute
   '/dashboard/budgets': typeof DashboardBudgetsRoute
   '/dashboard/goals': typeof DashboardGoalsRoute
   '/dashboard/insights': typeof DashboardInsightsRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/dashboard/accounts': typeof DashboardAccountsRoute
+  '/dashboard/audit-logs': typeof DashboardAuditLogsRoute
   '/dashboard/budgets': typeof DashboardBudgetsRoute
   '/dashboard/goals': typeof DashboardGoalsRoute
   '/dashboard/insights': typeof DashboardInsightsRoute
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/dashboard/accounts': typeof DashboardAccountsRoute
+  '/dashboard/audit-logs': typeof DashboardAuditLogsRoute
   '/dashboard/budgets': typeof DashboardBudgetsRoute
   '/dashboard/goals': typeof DashboardGoalsRoute
   '/dashboard/insights': typeof DashboardInsightsRoute
@@ -143,6 +152,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/reset-password'
     | '/dashboard/accounts'
+    | '/dashboard/audit-logs'
     | '/dashboard/budgets'
     | '/dashboard/goals'
     | '/dashboard/insights'
@@ -157,6 +167,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/dashboard/accounts'
+    | '/dashboard/audit-logs'
     | '/dashboard/budgets'
     | '/dashboard/goals'
     | '/dashboard/insights'
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/reset-password'
     | '/dashboard/accounts'
+    | '/dashboard/audit-logs'
     | '/dashboard/budgets'
     | '/dashboard/goals'
     | '/dashboard/insights'
@@ -240,6 +252,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardAccountsRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/audit-logs': {
+      id: '/dashboard/audit-logs'
+      path: '/audit-logs'
+      fullPath: '/dashboard/audit-logs'
+      preLoaderRoute: typeof DashboardAuditLogsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/budgets': {
       id: '/dashboard/budgets'
       path: '/budgets'
@@ -287,6 +306,7 @@ declare module '@tanstack/react-router' {
 
 interface DashboardRouteChildren {
   DashboardAccountsRoute: typeof DashboardAccountsRoute
+  DashboardAuditLogsRoute: typeof DashboardAuditLogsRoute
   DashboardBudgetsRoute: typeof DashboardBudgetsRoute
   DashboardGoalsRoute: typeof DashboardGoalsRoute
   DashboardInsightsRoute: typeof DashboardInsightsRoute
@@ -298,6 +318,7 @@ interface DashboardRouteChildren {
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAccountsRoute: DashboardAccountsRoute,
+  DashboardAuditLogsRoute: DashboardAuditLogsRoute,
   DashboardBudgetsRoute: DashboardBudgetsRoute,
   DashboardGoalsRoute: DashboardGoalsRoute,
   DashboardInsightsRoute: DashboardInsightsRoute,
@@ -322,8 +343,8 @@ export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
+import type { getRouter } from './router.jsx'
+import type { startInstance } from './start.js'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
