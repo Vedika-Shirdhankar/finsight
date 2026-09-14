@@ -1,1208 +1,670 @@
-# FinSight Analytics
+# FinSight — Personal Finance Intelligence Platform
 
-Build a production-quality full-stack FinTech web application called "FinSight".
+> A full-stack financial management and analytics platform for tracking transactions, managing budgets, monitoring savings goals, and turning financial data into actionable insights.
 
-IMPORTANT:
+## Overview
 
-This is NOT a simple expense tracker.
+**FinSight** is a full-stack personal finance platform designed to help users understand and manage their finances from a single dashboard.
 
-The project must demonstrate strong Software Engineering + FinTech + Data Analytics capabilities.
+Instead of functioning as a simple expense tracker, FinSight combines transaction management, budgeting, savings goals, recurring transactions, financial analytics, automated categorization, duplicate detection, shared accounts, notifications, and security controls into one system.
 
-CORE IDEA:
+The project focuses on building a secure, data-driven financial application with a scalable architecture and clear separation between the frontend, backend services, and database layer.
 
-FinSight is a financial intelligence platform that allows users to manage digital financial transactions while transforming transaction data into meaningful, actionable financial insights.
+---
 
-PROBLEM:
+## Key Features
 
-Digital payment platforms generate large amounts of transaction data, but users often only see basic transaction histories and balances. They lack meaningful tools to understand spending patterns, financial trends, category-wise expenses, savings behavior, and changes in their financial activity.
+### 📊 Financial Dashboard
 
-FinSight solves this by combining:
+* Overview of income, expenses, savings, and account balances
+* Monthly financial summaries
+* Spending trends
+* Category-wise expense breakdown
+* Recent transaction activity
+* Financial insights and alerts
 
-1. Financial transaction management
+### 💳 Transaction Management
 
-2. Personal financial management
+* Create, edit, and delete transactions
+* Income and expense tracking
+* Transaction categorization
+* Search and filtering
+* Date-based filtering
+* Automatic transaction categorization
+* Duplicate transaction detection
+* Recurring transaction support
 
-3. Advanced data analytics
+### 📈 Financial Analytics
 
-4. Interactive dashboards
+FinSight provides analytical views for understanding spending behavior, including:
 
-5. Actionable financial insights
+* Income vs. expense trends
+* Monthly spending analysis
+* Category-wise spending
+* Savings rate
+* Spending patterns
+* Budget utilization
+* Financial trends over time
 
-==================================================
+### 🎯 Budget Management
 
-TECH STACK
+* Create category-based budgets
+* Track spending against budgets
+* Monitor budget utilization
+* Identify overspending
+* View budget progress over time
 
-==================================================
-
-Frontend:
-
-- React
-
-- Vite
-
-- Tailwind CSS
-
-- React Router
-
-- Recharts
-
-- Lucide React
-
-Backend:
-
-- Node.js
-
-- Express.js
-
-- REST APIs
-
-- JWT authentication
-
-- bcrypt password hashing
-
-Database:
-
-- PostgreSQL
-
-Analytics:
-
-- SQL
-
-- Python
-
-- Pandas
-
-- NumPy
-
-Do NOT use Firebase as the primary database.
-
-Structure the application so that the backend and database can later be connected to real services.
-
-==================================================
-
-DESIGN DIRECTION
-
-==================================================
-
-Create a premium modern FinTech interface.
-
-The UI should feel like a combination of:
-
-- modern digital banking
-
-- Bloomberg-style financial analytics
-
-- Stripe-level product polish
-
-- modern SaaS dashboards
-
-Do NOT make it look like a generic admin template.
-
-Design principles:
-
-- Clean
-
-- Professional
-
-- Minimal
-
-- Trustworthy
-
-- Financial
-
-- Data-focused
-
-- Excellent typography
-
-- Strong visual hierarchy
-
-- Spacious layouts
-
-- Subtle animations
-
-- Rounded cards
-
-- High-quality charts
-
-- Consistent iconography
-
-Use a sophisticated financial color system with neutral backgrounds and restrained green/blue accents.
-
-Support both light and dark mode.
-
-Make the interface fully responsive for:
-
-- desktop
-
-- tablet
-
-- mobile
-
-==================================================
-
-APPLICATION STRUCTURE
-
-==================================================
-
-Create these major sections:
-
-1. Landing Page
-
-2. Authentication
-
-3. User Dashboard
-
-4. Transactions
-
-5. Analytics
-
-6. Budgets
-
-7. Savings Goals
-
-8. Accounts
-
-9. Profile / Settings
-
-10. Admin Dashboard
-
-==================================================
-
-LANDING PAGE
-
-==================================================
-
-Create a polished landing page explaining:
-
-"Turn transactions into financial intelligence."
-
-Hero section:
-
-- Strong headline
-
-- Short explanation
-
-- Get Started button
-
-- View Demo button
-
-- Modern financial dashboard visual
-
-Sections:
-
-- Why FinSight
-
-- Transaction Management
-
-- Financial Analytics
-
-- Smart Insights
-
-- Budget Tracking
-
-- Data-driven financial decisions
-
-- Security section
-
-- Final CTA
-
-Avoid excessive marketing text.
-
-==================================================
-
-AUTHENTICATION
-
-==================================================
-
-Create:
-
-- Sign Up
-
-- Login
-
-- Logout
-
-- Forgot Password UI
-
-- Protected routes
-
-Sign up fields:
-
-- Full name
-
-- Email
-
-- Password
-
-- Confirm password
-
-Login:
-
-- Email
-
-- Password
-
-Use JWT-based authentication architecture.
-
-Create proper validation and error states.
-
-==================================================
-
-USER DASHBOARD
-
-==================================================
-
-The dashboard should be the main experience.
-
-Top section:
-
-"Good morning, [User Name]"
-
-Show KPI cards:
-
-Total Balance
-
-Monthly Income
-
-Monthly Expenses
-
-Savings
-
-Savings Rate
-
-Example:
-
-Total Balance       ₹85,420
-
-Monthly Income      ₹65,000
-
-Monthly Expenses    ₹42,350
-
-Savings             ₹22,650
-
-Savings Rate        34.8%
-
-Each KPI should show:
-
-- current value
-
-- percentage change
-
-- comparison with previous month
-
-- small visual indicator
-
-==================================================
-
-DASHBOARD ANALYTICS
-
-==================================================
-
-Create beautiful interactive charts.
-
-1. Income vs Expenses
-
-Line/bar chart showing:
-
-- income
-
-- expenses
-
-- savings
-
-with:
-
-- 7 days
-
-- 30 days
-
-- 6 months
-
-- 1 year filters
-
-2. Spending by Category
-
-Donut chart:
-
-Food
-
-Shopping
-
-Transport
-
-Bills
-
-Entertainment
-
-Healthcare
-
-Education
-
-Other
-
-3. Spending Trend
-
-Line chart showing daily/weekly spending.
-
-4. Top Spending Categories
-
-Rank categories by expenditure.
-
-5. Recent Transactions
-
-Show:
-
-- merchant
-
-- category
-
-- amount
-
-- date
-
-- transaction type
-
-- status
-
-==================================================
-
-ACTIONABLE INSIGHTS
-
-==================================================
-
-This is a VERY IMPORTANT feature.
-
-Do not only display charts.
-
-Create an "Financial Insights" section.
-
-Examples:
-
-"Food spending increased 23% compared with last month."
-
-"Your average monthly savings increased 11% over the last 3 months."
-
-"Shopping represents 31% of your discretionary spending."
-
-"Your highest spending day this month was Saturday."
-
-"Your current savings rate is above your 3-month average."
-
-Each insight should have:
-
-- icon
-
-- title
-
-- explanation
-
-- relevant metric
-
-- severity/type such as Positive, Warning, Neutral
-
-Use realistic calculated demo data.
-
-==================================================
-
-TRANSACTIONS
-
-==================================================
-
-Create a complete transaction management system.
-
-Transaction fields:
-
-- Transaction ID
-
-- Date
-
-- Amount
-
-- Sender
-
-- Receiver
-
-- Merchant
-
-- Category
-
-- Payment method
-
-- Transaction type
-
-- Status
-
-- Description
-
-Transaction types:
-
-- Income
-
-- Expense
-
-- Transfer
-
-Statuses:
-
-- Completed
-
-- Pending
-
-- Failed
-
-Payment methods:
-
-- UPI
-
-- Debit Card
-
-- Credit Card
-
-- Bank Transfer
-
-- Cash
-
-Features:
-
-- Add transaction
-
-- Edit transaction
-
-- Delete transaction
-
-- Search
-
-- Filter
-
-- Sort
-
-- Pagination
-
-- Date range filter
-
-- Category filter
-
-- Amount filter
-
-- Transaction type filter
-
-- Status filter
-
-Create a professional transaction table.
-
-==================================================
-
-TRANSACTION DETAILS
-
-==================================================
-
-Clicking a transaction should open a detailed view/modal.
-
-Show:
-
-Transaction ID
-
-Amount
-
-Date & Time
-
-Sender
-
-Receiver
-
-Merchant
-
-Category
-
-Payment Method
-
-Status
-
-Description
-
-Add a visual transaction timeline.
-
-==================================================
-
-BUDGET MANAGEMENT
-
-==================================================
-
-Users can create monthly budgets.
-
-Example:
-
-Food
-
-Budget: ₹8,000
-
-Spent: ₹6,450
-
-Remaining: ₹1,550
-
-Display progress bars.
-
-Budget states:
-
-Healthy
-
-Near Limit
-
-Exceeded
-
-Create analytics showing:
-
-- total budget
-
-- total spent
-
-- remaining budget
-
-- category-wise budget utilization
-
-Generate insights such as:
-
-"You have used 81% of your Food budget."
-
-==================================================
-
-SAVINGS GOALS
-
-==================================================
-
-Allow users to create goals.
-
-Example:
-
-Emergency Fund
-
-Target: ₹1,00,000
-
-Saved: ₹65,000
-
-Progress: 65%
-
-Other examples:
-
-Laptop
-
-Travel
-
-Education
-
-Emergency Fund
-
-Show:
-
-- target
-
-- current amount
-
-- remaining amount
-
-- progress
-
-- target date
-
-==================================================
-
-ACCOUNTS
-
-==================================================
-
-Create simulated financial accounts.
-
-Examples:
-
-Savings Account
-
-₹52,400
-
-Checking Account
-
-₹21,300
-
-Digital Wallet
-
-₹11,720
-
-Credit Card
-
--₹4,500
-
-Allow users to:
-
-- add account
-
-- edit account
-
-- view account details
-
-- view account transaction history
-
-Clearly label these as simulated/demo financial accounts.
-
-Do NOT connect to real banks or payment systems.
-
-==================================================
-
-ANALYTICS PAGE
-
-==================================================
-
-Create a dedicated advanced Analytics page.
-
-This should be one of the strongest parts of the application.
-
-Add filters:
-
-- Date range
-
-- Category
-
-- Account
-
-- Transaction type
-
-KPIs:
-
-Total Transaction Volume
-
-Total Income
-
-Total Expenses
-
-Average Transaction Value
-
-Savings Rate
-
-Number of Transactions
-
-Charts:
-
-1. Monthly spending trend
-
-2. Income vs expenses
-
-3. Category distribution
-
-4. Transaction volume
-
-5. Average transaction value
-
-6. Savings trend
-
-7. Top merchants
-
-8. Spending by payment method
-
-9. Weekday vs weekend spending
-
-10. Month-over-month growth
-
-==================================================
-
-DATA ANALYTICS
-
-==================================================
-
-Design the system so analytics can later be generated using SQL and Python/Pandas.
-
-Include a dedicated "Data Insights" section.
-
-Examples:
-
-- Month-over-month expense growth
-
-- Top 5 spending categories
-
-- Top merchants
-
-- Average transaction value
-
-- Repeat transaction behavior
-
-- Category growth
-
-- Spending concentration
-
-- Savings trends
-
-- User activity trends
-
-Use realistic demo data so charts look meaningful.
-
-Avoid random meaningless charts.
-
-Every chart should answer a business/financial question.
-
-==================================================
-
-ADMIN DASHBOARD
-
-==================================================
-
-Create an Admin Dashboard for platform-level analytics.
-
-KPIs:
-
-Total Users
-
-Active Users
-
-Total Transactions
-
-Transaction Volume
-
-Average Transaction Value
-
-Failed Transactions
-
-Pending Transactions
-
-Charts:
-
-- Transaction volume over time
-
-- User growth
-
-- Transaction success/failure
-
-- Category distribution
-
-- Payment method usage
-
-- Daily active users
-
-- Monthly transaction growth
-
-Admin tables:
-
+### 💰 Savings Goals
+
+* Create personalized savings goals
+* Define target amounts
+* Track progress
+* Monitor contributions
+* Visualize progress toward financial targets
+
+### 🔄 Recurring Transactions
+
+Support for recurring financial commitments such as:
+
+* Rent
+* Subscriptions
+* EMIs
+* Salaries
+* Utility payments
+* Other recurring income or expenses
+
+### 🤝 Shared Accounts
+
+Users can collaborate on shared financial accounts with support for:
+
+* Account members
+* Shared transactions
+* Transaction splitting
+* Member-level access control
+
+### 🧠 Intelligent Transaction Processing
+
+FinSight includes automated financial-data processing such as:
+
+* Merchant normalization
+* Automatic categorization
+* Duplicate detection
+* Transaction pattern analysis
+* Confidence-based categorization
+
+### 📥 CSV Import
+
+Users can import transaction data from CSV files.
+
+The import workflow is designed to:
+
+1. Parse uploaded transaction data
+2. Validate records
+3. Normalize transaction information
+4. Categorize transactions
+5. Detect potential duplicates
+6. Store valid records
+
+### 🔐 Security
+
+Security is treated as a core part of the application rather than an afterthought.
+
+The application includes:
+
+* Authentication
+* Role-based authorization
+* Supabase Row Level Security (RLS)
+* User-scoped financial data
+* Protected backend operations
+* Audit logging
+* Environment-based secret management
+* Input validation
+
+Sensitive credentials such as Supabase service-role keys are kept on the server and are never exposed to the frontend.
+
+---
+
+# Architecture
+
+```text
+                         ┌─────────────────────┐
+                         │       User          │
+                         └──────────┬──────────┘
+                                    │
+                                    ▼
+                    ┌───────────────────────────┐
+                    │ React + TypeScript        │
+                    │                           │
+                    │ UI / Pages / Components   │
+                    └─────────────┬─────────────┘
+                                  │
+                                  ▼
+                    ┌───────────────────────────┐
+                    │ TanStack Router / Query   │
+                    │                           │
+                    │ Routing & Server State    │
+                    └─────────────┬─────────────┘
+                                  │
+                                  ▼
+                    ┌───────────────────────────┐
+                    │ Application/API Layer     │
+                    │                           │
+                    │ Validation                │
+                    │ Business Logic            │
+                    │ Authorization              │
+                    └─────────────┬─────────────┘
+                                  │
+                                  ▼
+                    ┌───────────────────────────┐
+                    │ Express Backend           │
+                    │                           │
+                    │ Protected Operations      │
+                    │ Integrations               │
+                    └─────────────┬─────────────┘
+                                  │
+                                  ▼
+                    ┌───────────────────────────┐
+                    │ Supabase                  │
+                    │                           │
+                    │ PostgreSQL                │
+                    │ Authentication            │
+                    │ Row Level Security        │
+                    │ Database Policies          │
+                    └───────────────────────────┘
+```
+
+---
+
+# Technology Stack
+
+## Frontend
+
+* **React**
+* **TypeScript**
+* **Vite**
+* **TanStack Router**
+* **TanStack Query**
+* **Tailwind CSS**
+* **Recharts**
+* **Lucide React**
+
+## Backend
+
+* **Node.js**
+* **Express.js**
+* **TypeScript / JavaScript**
+* REST-style API architecture
+
+## Database & Authentication
+
+* **Supabase**
+* **PostgreSQL**
+* **Supabase Authentication**
+* **Row Level Security (RLS)**
+
+## Validation & Data Processing
+
+* **Zod**
+* CSV parsing
+* Transaction normalization
+* Duplicate detection
+* Automated categorization
+
+## Development & Deployment
+
+* Git
+* GitHub
+* Environment variables
+* Vite
+* Node.js
+
+---
+
+# Database Design
+
+The application uses PostgreSQL through Supabase.
+
+The core data model is centered around users, accounts, and transactions.
+
+```text
 Users
+ │
+ ├── Accounts
+ │      │
+ │      ├── Transactions
+ │      │       └── Transaction Splits
+ │      │
+ │      └── Account Members
+ │
+ ├── Budgets
+ │
+ ├── Savings Goals
+ │
+ ├── Recurring Transactions
+ │
+ └── Notifications
 
 Transactions
+      │
+      └── Audit Logs
+```
 
-Categories
+The database uses Row Level Security policies to ensure users can only access resources they are authorized to access.
 
-Admin capabilities:
+---
 
-- View users
+# Security Model
 
-- Search users
+Financial applications require strong data isolation.
 
-- Filter users
+FinSight uses multiple layers of security:
 
-- View transaction activity
+### Authentication
 
-- Manage categories
+Users authenticate through Supabase Authentication.
 
-- View platform analytics
+### Authorization
 
-Use role-based access control.
+Application-level authorization determines which operations a user can perform.
 
-==================================================
+### Row Level Security
 
-USER PROFILE
+PostgreSQL RLS policies provide database-level protection.
 
-==================================================
+This means that even if an application-level check is accidentally bypassed, database policies can still prevent unauthorized access to another user's financial records.
 
-Create:
+### Service Role Protection
 
-- Personal information
+The Supabase service-role key is intended only for trusted backend/server environments.
 
-- Email
+It must never be exposed through frontend code or committed to the repository.
 
-- Profile picture
+### Audit Logging
 
-- Account preferences
+Important financial operations can be recorded for traceability and accountability.
 
-- Notification settings
+---
 
-- Theme settings
+# Financial Analytics
 
-- Security settings
+FinSight converts raw transaction data into useful financial metrics.
 
-==================================================
+Examples include:
 
-NOTIFICATIONS
+### Savings Rate
 
-==================================================
+```text
+Savings Rate =
+(Income - Expenses) / Income × 100
+```
 
-Create a notification center.
+### Budget Utilization
 
-Examples:
+```text
+Budget Utilization =
+Amount Spent / Budget Limit × 100
+```
 
-"Your Food budget is almost exhausted."
+### Average Transaction Value
 
-"Your monthly spending increased by 18%."
+```text
+Average Transaction =
+Total Transaction Amount / Number of Transactions
+```
 
-"Your savings goal is 65% complete."
+### Month-over-Month Spending
 
-"Unusual transaction detected."
+```text
+MoM Change =
+(Current Month Spending - Previous Month Spending)
+-------------------------------------------------- × 100
+              Previous Month Spending
+```
 
-==================================================
+These metrics allow users to identify changes in spending behavior rather than simply viewing raw transactions.
 
-FUTURE ML ARCHITECTURE
+---
 
-==================================================
+# Intelligent Transaction Categorization
 
-Design the backend so ML can be added later.
+Transactions can be automatically categorized using transaction metadata and merchant information.
 
-Do NOT make ML the main feature initially.
+The processing pipeline follows the general pattern:
 
-Create a placeholder architecture for:
-
-1. Financial anomaly detection
-
-2. Expense forecasting
-
-Example future insight:
-
-"Your projected expenses next month are ₹4,200 higher than your current monthly average."
-
-Another:
-
-"An unusually large transaction was detected compared with your normal transaction behavior."
-
-Do not claim actual ML is running unless implemented.
-
-==================================================
-
-DATABASE DESIGN
-
-==================================================
-
-Create a clean relational database architecture.
-
-Tables should include approximately:
-
-users
-
-accounts
-
-transactions
-
-categories
-
-budgets
-
-budget_categories
-
-savings_goals
-
-notifications
-
-Use proper relationships and foreign keys.
-
-Transactions should contain:
-
-id
-
-user_id
-
-account_id
-
-amount
-
-type
-
-category_id
-
-merchant
-
-payment_method
-
-status
-
-description
-
-transaction_date
-
-created_at
-
-Use appropriate indexes for:
-
-user_id
-
-transaction_date
-
-category_id
-
-status
-
-==================================================
-
-API ARCHITECTURE
-
-==================================================
-
-Structure the backend using clean REST APIs.
+```text
+Raw Transaction
+       │
+       ▼
+Merchant Normalization
+       │
+       ▼
+Rule / Pattern Matching
+       │
+       ▼
+Category Prediction
+       │
+       ▼
+Confidence Score
+       │
+       ▼
+User Confirmation / Storage
+```
+
+For example:
+
+```text
+"SWIGGY ORDER"
+      ↓
+Food & Dining
+      ↓
+High Confidence
+```
+
+This reduces manual categorization while still allowing users to correct classifications.
+
+---
+
+# Duplicate Detection
+
+Imported or synchronized financial data can contain duplicate transactions.
+
+FinSight can compare transaction attributes such as:
+
+* Amount
+* Date
+* Merchant
+* Account
+* Transaction type
+
+to identify potential duplicate records before they are treated as separate expenses.
+
+---
+
+# CSV Import Pipeline
+
+```text
+CSV File
+   │
+   ▼
+Parse
+   │
+   ▼
+Validate
+   │
+   ▼
+Normalize
+   │
+   ▼
+Categorize
+   │
+   ▼
+Duplicate Detection
+   │
+   ▼
+Database
+```
+
+Invalid records can be rejected without compromising the rest of the import process.
+
+---
+
+# Project Structure
+
+A simplified structure of the application:
+
+```text
+insightful-fin-flows/
+│
+├── src/
+│   ├── components/
+│   ├── pages/
+│   ├── routes/
+│   ├── services/
+│   ├── hooks/
+│   ├── lib/
+│   └── ...
+│
+├── server/
+│   ├── routes/
+│   ├── controllers/
+│   ├── services/
+│   └── ...
+│
+├── supabase/
+│   └── migrations/
+│
+├── public/
+│
+├── package.json
+├── vite.config.*
+├── tsconfig.*
+├── .gitignore
+└── README.md
+```
+
+> The exact structure may evolve as the project grows.
+
+---
+
+# Getting Started
+
+## Prerequisites
+
+Make sure you have installed:
+
+* Node.js 18+
+* npm
+* Git
+* A Supabase project
+
+---
+
+## 1. Clone the repository
+
+```bash
+git clone https://github.com/Vedika-Shirdhankar/insightful-fin-flows.git
+cd insightful-fin-flows
+```
+
+---
+
+## 2. Install dependencies
+
+```bash
+npm install
+```
+
+If the backend has a separate package configuration, install its dependencies as well.
+
+---
+
+## 3. Configure environment variables
+
+Create a `.env` file based on the project's environment configuration.
 
 Example:
 
-POST /api/auth/register
+```env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-POST /api/auth/login
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
 
-GET /api/users/profile
+Additional variables may be required for optional integrations.
 
-GET /api/accounts
+### Important
 
-POST /api/accounts
+Never commit `.env` files or production credentials.
 
-GET /api/transactions
+Use:
 
-POST /api/transactions
+```gitignore
+.env
+.env.*
+```
 
-GET /api/transactions/:id
+in `.gitignore`.
 
-PUT /api/transactions/:id
+---
 
-DELETE /api/transactions/:id
+## 4. Configure Supabase
 
-GET /api/budgets
+Create a Supabase project and configure:
 
-POST /api/budgets
+* Database
+* Authentication
+* Database migrations
+* Row Level Security policies
 
-GET /api/goals
+Apply the migrations included in:
 
-POST /api/goals
+```text
+supabase/migrations/
+```
 
-GET /api/analytics/overview
+---
 
-GET /api/analytics/spending
+## 5. Start the development server
 
-GET /api/analytics/categories
-
-GET /api/admin/users
-
-GET /api/admin/transactions
-
-GET /api/admin/analytics
-
-Use proper:
-
-- controllers
-
-- routes
-
-- middleware
-
-- services
-
-- database layer
-
-- validation
-
-- error handling
-
-Do not put all backend logic into one file.
-
-==================================================
-
-SECURITY
-
-==================================================
-
-Implement proper software engineering practices.
-
-- Password hashing
-
-- JWT authentication
-
-- Protected routes
-
-- Role-based authorization
-
-- Input validation
-
-- API error handling
-
-- Environment variables
-
-- No hardcoded secrets
-
-- Basic rate limiting architecture
-
-- Secure API structure
-
-Never expose passwords or sensitive authentication data in frontend responses.
-
-Since this is a student/demo project, clearly state that financial accounts and transactions are simulated and no real banking credentials are collected.
-
-==================================================
-
-UX REQUIREMENTS
-
-==================================================
-
-Add:
-
-- Loading states
-
-- Skeleton loaders
-
-- Empty states
-
-- Error states
-
-- Success notifications
-
-- Confirmation dialogs
-
-- Form validation
-
-- Responsive navigation
-
-- Sidebar
-
-- Top navigation
-
-- Breadcrumbs where useful
-
-Use smooth but subtle animations.
-
-Do not overuse animations.
-
-==================================================
-
-DEMO DATA
-
-==================================================
-
-Populate the application with realistic demo data.
-
-Create:
-
-- multiple users
-
-- multiple accounts
-
-- hundreds of transactions
-
-- different categories
-
-- different transaction dates
-
-- different transaction amounts
-
-- successful/failed/pending transactions
-
-The dashboard should look populated immediately after login.
-
-Use Indian financial context:
-
-Currency: INR (₹)
-
-Payment methods should prominently include:
-
-- UPI
-
-- Cards
-
-- Bank Transfer
-
-Use realistic Indian merchants/categories without using real sensitive financial information.
-
-==================================================
-
-IMPORTANT PRODUCT PRINCIPLES
-
-==================================================
-
-1. This must feel like a real FinTech product.
-
-2. It must NOT look like a basic CRUD college project.
-
-3. Analytics must be a core part of the application.
-
-4. Every dashboard visualization should answer a meaningful financial question.
-
-5. SDE architecture should be clean and scalable.
-
-6. Keep the product focused on transaction management and financial analytics.
-
-7. Do not add healthcare, social media, crypto trading, stock trading, or unrelated features.
-
-8. Do not make medical/health features.
-
-9. Do not integrate real banking credentials.
-
-10. Use simulated financial data.
-
-==================================================
-
-FINAL QUALITY BAR
-
-==================================================
-
-Before considering the project complete, verify:
-
-- All routes work
-
-- Authentication flow works
-
-- Dashboard loads correctly
-
-- Transactions CRUD works
-
-- Search/filter/sort works
-
-- Budgets work
-
-- Savings goals work
-
-- Analytics charts work
-
-- Admin dashboard works
-
-- Role-based access works
-
-- Responsive UI works
-
-- Dark mode works
-
-- Loading/error/empty states exist
-
-- No broken buttons
-
-- No placeholder lorem ipsum
-
-- No dead navigation
-
-- No fake functionality presented as real
-
-- No console errors
-
-- Clean component structure
-
-- Clean API structure
-
-- Clean database architecture
-
-Prioritize functionality, data consistency, UX, and maintainable architecture over adding unnecessary features.
-
-Build the application incrementally, starting with the core architecture and database, then authentication, transactions, dashboard, analytics, budgets, goals, and finally admin functionality.
-
-This project was built with [Lovable](https://lovable.dev).
-
-**Live app**: https://insightful-fin-flows.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/6dc1561f-b6cc-4da7-b743-058ac9493b8e).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+```bash
 npm run dev
 ```
+
+Open the local URL displayed by Vite.
+
+---
+
+# Testing
+
+The project is intended to be tested at multiple levels:
+
+### Unit Tests
+
+Test individual utilities and business logic.
+
+### Integration Tests
+
+Test interactions between services, APIs, and the database.
+
+### End-to-End Tests
+
+Important user journeys should be tested from the UI.
+
+Example:
+
+```text
+Login
+  ↓
+Create Transaction
+  ↓
+Transaction Stored
+  ↓
+Dashboard Updated
+  ↓
+Analytics Updated
+```
+
+---
+
+# Performance & Scalability Considerations
+
+The application is designed with scalability in mind.
+
+Potential scaling strategies include:
+
+* Database indexing on frequently queried fields
+* Server-side pagination
+* Server-side filtering
+* Efficient aggregation queries
+* Query caching
+* Separation of frontend and backend responsibilities
+* Asynchronous processing for expensive operations
+* Provider-agnostic external integrations
+
+For large transaction datasets, filtering and aggregation should be performed at the database layer rather than loading the entire dataset into the browser.
+
+---
+
+# Future Improvements
+
+Potential future improvements include:
+
+* Real-time bank synchronization
+* Open Banking / Account Aggregator integrations
+* Advanced financial forecasting
+* Machine-learning-based spending predictions
+* Personalized financial health scoring
+* Anomaly detection for unusual transactions
+* Advanced recurring-payment detection
+* Investment tracking
+* Multi-currency support
+* Mobile application
+* Expanded automated testing
+* Background job processing
+* Observability and monitoring
+
+---
+
+# Engineering Challenges
+
+Some of the key engineering challenges addressed by the project include:
+
+### 1. Protecting financial data
+
+Financial information must remain isolated between users. Database-level RLS provides an additional security layer beyond frontend authorization.
+
+### 2. Handling inconsistent transaction data
+
+Imported transaction data can have inconsistent merchant names, formats, and duplicate records. Normalization and validation help produce cleaner financial datasets.
+
+### 3. Designing for external integrations
+
+Banking providers can have different APIs and failure modes. A provider-agnostic integration layer allows external providers to be added without tightly coupling the rest of the application to one service.
+
+### 4. Maintaining consistent analytics
+
+Financial dashboards depend on accurate aggregation of transactions. Analytics should therefore be derived from a consistent transaction model rather than duplicated across multiple frontend components.
+
+---
+
+# Why FinSight?
+
+Traditional expense trackers primarily answer:
+
+> **"Where did my money go?"**
+
+FinSight aims to answer a broader question:
+
+> **"What is happening with my finances, why is it happening, and what should I pay attention to?"**
+
+By combining transaction management with analytics, budgeting, savings goals, intelligent categorization, and security controls, the platform provides a foundation for more informed financial decision-making.
+
+---
+
+# Project Status
+
+🚧 **Active Development**
+
+Core financial management functionality is implemented, with ongoing improvements focused on:
+
+* Security hardening
+* Automated testing
+* Analytics
+* Performance
+* External financial integrations
+* Production deployment
+
+---
+
+# Author
+
+**Vedika Shirdankar**
+
+Computer Science & Engineering
+
+---
+
+## License
+
+This project is intended for educational, portfolio, and demonstration purposes.
