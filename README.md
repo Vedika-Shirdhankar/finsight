@@ -1206,3 +1206,117 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Audit Logging System
+
+FinSight includes a production-grade, compliance-ready **Audit Logging System** designed to track and record all financial data changes and user access events.
+
+### 1. Objective & Capability
+The audit system answers five core compliance questions for any state mutation:
+> **Who did what, to which resource, when, and what changed?**
+
+### 2. Database Design (`public.audit_logs`)
+- `id`: UUID (Primary Key)
+- `user_id`: UUID (Foreign Key `auth.users(id)`)
+- `action`: Operations recorded (`CREATE`, `UPDATE`, `DELETE`, `IMPORT`, `MEMBER_ADDED`, `MEMBER_REMOVED`, `PERMISSION_CHANGED`)
+- `resource_type`: Affected category (`transaction`, `account`, `budget`, `budget_category`, `savings_goal`, `recurring_transaction`, `account_member`)
+- `resource_id`: Affected entity ID
+- `old_data`: Prior state snapshot (for UPDATE / DELETE)
+- `new_data`: Updated state snapshot (for CREATE / UPDATE)
+- `metadata`: Contextual statistics (`filename`, `number_of_rows`, `successful_rows`, `failed_rows`, `duplicate_rows`, field diffs)
+- `created_at`: TIMESTAMPTZ timestamp
+
+### 3. Security & Append-Only RLS Model
+Row-Level Security (RLS) policies strictly enforce:
+- **Append-Only Access**: Authenticated users can `INSERT` and `SELECT` their own audit entries.
+- **Strict Prohibition of Tampering**: **No `UPDATE` or `DELETE` policies exist for application roles**. Once recorded, audit logs cannot be edited or deleted by users.
+- **Admin Visibility**: Authorized administrators can view and query platform-wide audit logs via `get_audit_logs(...)` Security Definer RPC.
+- **Secret Redaction**: Passwords, tokens, API keys, and private parameters are automatically sanitized before audit log persistence.
+
+### 4. Audited Financial Operations
+- **Transactions**: `CREATE`, `UPDATE` (with before/after field diff), `DELETE`
+- **Accounts**: `CREATE`, `UPDATE`, `DELETE`
+- **Budgets & Categories**: `CREATE`, `UPDATE`, `DELETE`
+- **Savings Goals**: `CREATE`, `UPDATE`, `DELETE`, progress updates
+- **Recurring Transactions**: `CREATE`, `UPDATE`, `DELETE`
+- **Shared Accounts**: `MEMBER_ADDED`, `MEMBER_REMOVED`, `PERMISSION_CHANGED`
+- **CSV Imports**: `IMPORT` with metrics (`filename`, `number_of_rows`, `successful_rows`, `failed_rows`, `duplicate_rows`)
+
+### 5. UI Features & Pagination
+- **Dedicated Audit Trail Page**: Available under `/dashboard/audit-logs`.
+- **Filtering & Search**: Filter by Action, Resource Type, Date Range, and Search Query.
+- **Server-Side Pagination**: Efficient database-level pagination (`get_audit_logs` RPC) returning `total_count` and paginated log records.
+- **Visual Inspector Modal**: Shows formatted before $\rightarrow$ after diffs (`₹2,500 ↓ ₹2,200`), structured event summaries, and developer JSON tabs.
+- **Admin Control Integration**: Integrated tab in Admin Control Center (`/admin`) for multi-user audit management.
+
+
+## Machine Learning Anomaly Detection Microservice
+
+FinSight includes a standalone, production-ready Machine Learning transaction anomaly detection service extending the platform's baseline statistical (Z-score) analytics.
+
+### 1. Architecture Flow
+
+```text
+React / TanStack Frontend (Insights Dashboard)
+        │
+        ▼ (POST /predict with sanitized transaction data)
+FastAPI REST Microservice (`ml/app.py` on port 8000)
+        │
+        ▼
+Feature Engineering Pipeline (`ml/feature_engineering.py`)
+├── Numerical & Log Scaling (`log_amount = np.log1p(amount)`)
+├── Temporal Extraction (`hour_of_day`, `day_of_week`, `is_weekend`)
+├── Text Length Metric (`description_length`)
+├── Frequency Encoding (`merchant_frequency`)
+└── Fixed One-Hot Encodings (`type_*`, `payment_method_*`)
+        │
+        ▼
+Isolation Forest ML Model (`ml/model.py` - sklearn IsolationForest)
+        │
+        ▼
+Anomaly Scoring & Explanation Engine
+├── Anomaly Decision Boundary (Score > 0.0)
+├── Severity Classification (`High`, `Medium`, `Low`, `Normal`)
+└── Human-Readable Reason Generator
+        │
+        ▼
+Insights Dashboard UI Visualization
+```
+
+### 2. Key Machine Learning Concepts
+- **Isolation Forest Unsupervised Model**: Isolates anomalies directly by randomly selecting features and splitting values. Anomalous transactions require fewer tree splits (shorter depth) to isolate than normal spending patterns.
+- **Statistical Z-Score vs ML Anomaly Detection**:
+  - *Statistical Z-Score*: Single-variable standard deviation limit ($Z > 2.2\sigma$) evaluating amount against category averages.
+  - *Isolation Forest ML*: Multi-variable model simultaneously evaluating interactions between amount, log-scale, temporal hour, merchant frequency, and payment channel.
+- **Interpretation Note**: An anomaly indicates an unusual transaction pattern flagged by decision tree splits. It does not necessarily indicate fraud.
+
+### 3. Local Setup & Execution Instructions
+
+#### 1. Configure Environment Variables
+Copy `.env.example` to `.env` or verify:
+```bash
+VITE_ML_API_URL=http://localhost:8000
+```
+
+#### 2. Install ML Dependencies & Train Model
+```bash
+pip install -r ml/requirements.txt
+python ml/train.py
+```
+
+#### 3. Run FastAPI Microservice
+```bash
+uvicorn ml.app:app --host 0.0.0.0 --port 8000 --reload
+```
+
+#### 4. Run Pytest Verification Suite
+```bash
+python -m pytest ml/tests/test_ml.py -v
+```
+
+#### 5. Launch React Frontend
+```bash
+npm run dev
+```
+Navigate to `/dashboard/insights` and click **"Analyze Transactions"**.
+
