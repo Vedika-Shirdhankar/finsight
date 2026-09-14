@@ -1,0 +1,66 @@
+id,user_id,amount,type,merchant,payment_method,status,description,transaction_date
+tx_001,usr_101,450.00,expense,Supermarket Grocery,UPI,completed,Weekly grocery shopping,2026-08-01T10:30:00Z
+tx_002,usr_101,320.00,expense,Swiggy,UPI,completed,Lunch order,2026-08-01T13:15:00Z
+tx_003,usr_101,1200.00,expense,Indian Oil Petrol,card,completed,Vehicle refueling,2026-08-02T09:45:00Z
+tx_004,usr_101,75000.00,income,Acme Tech Corp,netbanking,completed,Monthly Salary,2026-08-01T09:00:00Z
+tx_005,usr_101,649.00,expense,Netflix,card,completed,Monthly streaming subscription,2026-08-03T18:00:00Z
+tx_006,usr_101,150.00,expense,Blue Tokai Coffee,UPI,completed,Morning coffee,2026-08-03T08:30:00Z
+tx_007,usr_101,2400.00,expense,Electricity Board,netbanking,completed,Electricity utility bill,2026-08-04T11:00:00Z
+tx_008,usr_101,550.00,expense,Zomato,UPI,completed,Dinner order,2026-08-04T20:30:00Z
+tx_009,usr_101,890.00,expense,Amazon,card,completed,Household goods,2026-08-05T15:20:00Z
+tx_010,usr_101,350.00,expense,Uber,UPI,completed,Commute to office,2026-08-05T09:10:00Z
+tx_011,usr_101,120.00,expense,Local Bakery,cash,completed,Snacks,2026-08-06T16:45:00Z
+tx_012,usr_101,5000.00,transfer,HDFC Savings,netbanking,completed,Savings transfer,2026-08-06T10:00:00Z
+tx_013,usr_101,780.00,expense,Apollo Pharmacy,card,completed,Medicines,2026-08-07T12:30:00Z
+tx_014,usr_101,420.00,expense,Swiggy,UPI,completed,Dinner order,2026-08-07T21:00:00Z
+tx_015,usr_101,1500.00,expense,Decathlon,card,completed,Sports wear,2026-08-08T17:15:00Z
+tx_016,usr_101,280.00,expense,Uber,UPI,completed,Cab ride,2026-08-08T22:00:00Z
+tx_017,usr_101,1850.00,expense,BigBasket,UPI,completed,Groceries,2026-08-09T11:00:00Z
+tx_018,usr_101,250.00,expense,Chai Point,UPI,completed,Tea with colleagues,2026-08-09T16:00:00Z
+tx_019,usr_101,3100.00,expense,Airtel Broadband,netbanking,completed,Internet bill,2026-08-10T10:00:00Z
+tx_020,usr_101,620.00,expense,Zomato,UPI,completed,Lunch,2026-08-10T13:30:00Z
+tx_021,usr_101,185000.00,expense,Royal Diamonds & Jewelry,card,completed,Unusual high value midnight purchase,2026-08-11T03:22:00Z
+tx_022,usr_101,490.00,expense,Supermarket Grocery,UPI,completed,Groceries,2026-08-11T18:30:00Z
+tx_023,usr_101,1100.00,expense,Shell Fuel,card,completed,Petrol,2026-08-12T08:45:00Z
+tx_024,usr_101,380.00,expense,BookMyShow,UPI,completed,Movie ticket,2026-08-12T19:00:00Z
+tx_025,usr_101,950.00,expense,Myntra,card,completed,Clothing,2026-08-13T14:10:00Z
+tx_026,usr_101,210.00,expense,Starbucks,UPI,completed,Coffee,2026-08-13T09:30:00Z
+tx_027,usr_101,1450.00,expense,Supermarket Grocery,UPI,completed,Groceries,2026-08-14T10:00:00Z
+tx_028,usr_101,95000.00,transfer,Unknown Overseas Remittance,netbanking,completed,Large anomalous international wire,2026-08-14T02:15:00Z
+tx_029,usr_101,340.00,expense,Swiggy,UPI,completed,Lunch,2026-08-15T13:00:00Z
+tx_030,usr_101,520.00,expense,Uber,UPI,completed,Weekend ride,2026-08-15T18:45:00Z
+tx_031,usr_101,1600.00,expense,Indian Oil Petrol,card,completed,Fuel,2026-08-16T11:20:00Z
+tx_032,usr_101,450.00,expense,Zomato,UPI,completed,Dinner,2026-08-16T20:15:00Z
+tx_033,usr_101,2200.00,expense,Croma Electronics,card,completed,Headphones,2026-08-17T16:30:00Z
+tx_034,usr_101,180.00,expense,Local Dairy,cash,completed,Milk and butter,2026-08-17T07:45:00Z
+tx_035,usr_101,650.00,expense,Amazon,card,completed,Books,2026-08-18T12:10:00Z
+tx_036,usr_101,310.00,expense,Uber,UPI,completed,Cab ride,2026-08-18T19:20:00Z
+tx_037,usr_101,1250.00,expense,BigBasket,UPI,completed,Groceries,2026-08-19T10:15:00Z
+tx_038,usr_101,490.00,expense,Swiggy,UPI,completed,Lunch,2026-08-19T13:45:00Z
+tx_039,usr_101,75000.00,income,Acme Tech Corp,netbanking,completed,Monthly Salary,2026-09-01T09:00:00Z
+tx_040,usr_101,520.00,expense,Supermarket Grocery,UPI,completed,Groceries,2026-09-01T17:30:00Z
+tx_041,usr_101,1300.00,expense,Indian Oil Petrol,card,completed,Fuel,2026-09-02T08:30:00Z
+tx_042,usr_101,649.00,expense,Netflix,card,completed,Subscription,2026-09-03T18:00:00Z
+tx_043,usr_101,72000.00,expense,Crypto Exchange Offshore,card,completed,Unusual high frequency spike transaction,2026-09-03T04:10:00Z
+tx_044,usr_101,360.00,expense,Zomato,UPI,completed,Dinner,2026-09-04T21:15:00Z
+tx_045,usr_101,110.00,expense,Local Bakery,cash,completed,Bread,2026-09-04T08:00:00Z
+tx_046,usr_101,2300.00,expense,Electricity Board,netbanking,completed,Utility,2026-09-05T11:00:00Z
+tx_047,usr_101,850.00,expense,Amazon,card,completed,Stationery,2026-09-05T14:45:00Z
+tx_048,usr_101,410.00,expense,Uber,UPI,completed,Cab ride,2026-09-06T10:20:00Z
+tx_049,usr_101,1750.00,expense,BigBasket,UPI,completed,Weekly supplies,2026-09-06T16:00:00Z
+tx_050,usr_101,290.00,expense,Chai Point,UPI,completed,Beverages,2026-09-07T11:15:00Z
+tx_051,usr_101,540.00,expense,Swiggy,UPI,completed,Lunch,2026-09-07T13:20:00Z
+tx_052,usr_101,1400.00,expense,Shell Fuel,card,completed,Petrol,2026-09-08T09:00:00Z
+tx_053,usr_101,980.00,expense,Apollo Pharmacy,card,completed,Healthcare,2026-09-08T15:30:00Z
+tx_054,usr_101,380.00,expense,Zomato,UPI,completed,Dinner,2026-09-09T20:45:00Z
+tx_055,usr_101,1650.00,expense,Supermarket Grocery,UPI,completed,Groceries,2026-09-10T10:30:00Z
+tx_056,usr_101,65000.00,expense,High Risk Gaming Portal,card,completed,Unusual gambling transaction,2026-09-10T02:45:00Z
+tx_057,usr_101,430.00,expense,Uber,UPI,completed,Cab,2026-09-11T09:15:00Z
+tx_058,usr_101,1200.00,expense,Decathlon,card,completed,Fitness gear,2026-09-11T18:00:00Z
+tx_059,usr_101,3100.00,expense,Airtel Broadband,netbanking,completed,Internet,2026-09-12T10:00:00Z
+tx_060,usr_101,470.00,expense,Swiggy,UPI,completed,Dinner,2026-09-12T21:00:00Z
+tx_061,usr_101,1550.00,expense,Indian Oil Petrol,card,completed,Fuel,2026-09-13T11:00:00Z
+tx_062,usr_101,880.00,expense,Amazon,card,completed,Home items,2026-09-13T16:30:00Z
+tx_063,usr_101,320.00,expense,Starbucks,UPI,completed,Coffee,2026-09-14T09:00:00Z
+tx_064,usr_101,590.00,expense,Zomato,UPI,completed,Lunch,2026-09-14T13:10:00Z
+tx_065,usr_101,140000.00,expense,Luxury Electronics Megastore,card,completed,Sudden huge appliance purchase,2026-09-14T01:30:00Z

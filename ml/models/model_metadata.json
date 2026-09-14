@@ -1,0 +1,24 @@
+{
+  "model_type": "IsolationForest",
+  "n_estimators": 100,
+  "contamination": 0.05,
+  "random_state": 42,
+  "feature_columns": [
+    "amount",
+    "log_amount",
+    "day_of_week",
+    "day_of_month",
+    "hour_of_day",
+    "is_weekend",
+    "description_length",
+    "merchant_frequency",
+    "type_expense",
+    "type_income",
+    "type_transfer",
+    "payment_method_upi",
+    "payment_method_card",
+    "payment_method_netbanking",
+    "payment_method_cash"
+  ],
+  "total_features": 15
+}
