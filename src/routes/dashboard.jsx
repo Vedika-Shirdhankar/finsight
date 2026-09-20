@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { AreaChart, Bell, ChevronDown, FileText, LayoutDashboard, LogOut, Menu, PieChart, Repeat, Search, Settings, ShieldCheck, Target, WalletCards, X, } from "lucide-react";
+import { AreaChart, Bell, ChevronDown, FileText, LayoutDashboard, LogOut, Menu, PieChart, Repeat, Search, Settings, ShieldCheck, Target, WalletCards, X, Sparkles, } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications, useNotificationSync, } from "@/hooks/queries/use-notifications";
-import { useRecurringTransactionSync } from "@/hooks/queries/use-recurring-transactions";
+import { useRecurringTransactions, useRecurringTransactionSync } from "@/hooks/queries/use-recurring-transactions";
+import { useTransactions } from "@/hooks/queries/use-transactions";
+import { useBudget } from "@/hooks/queries/use-budgets";
+import { useSavingsGoals } from "@/hooks/queries/use-savings-goals";
+import { useCategories } from "@/hooks/queries/use-categories";
+import { useAccounts } from "@/hooks/queries/use-accounts";
+import { AiAssistantDrawer } from "@/components/assistant/ai-assistant-drawer";
 export const Route = createFileRoute("/dashboard")({
     head: () => ({
         meta: [
@@ -39,12 +45,20 @@ function DashboardLayout() {
     useNotificationSync(userId);
     useRecurringTransactionSync(userId);
     const { data: notifications } = useNotifications(userId);
+    const { data: txns } = useTransactions(userId, {});
+    const { data: budget } = useBudget(userId);
+    const { data: goals } = useSavingsGoals(userId);
+    const { data: recurringTxns } = useRecurringTransactions(userId);
+    const { data: categories } = useCategories(userId);
+    const { data: accounts } = useAccounts(userId);
+
     const markRead = useMarkNotificationRead(userId);
     const markAllRead = useMarkAllNotificationsRead(userId);
     const unreadCount = notifications?.filter((n) => !n.is_read).length ?? 0;
     const [menuOpen, setMenuOpen] = useState(false);
     const [profileMenu, setProfileMenu] = useState(false);
     const [notificationsOpen, setNotificationsOpen] = useState(false);
+    const [assistantOpen, setAssistantOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -131,6 +145,16 @@ function DashboardLayout() {
             Workspace
           </div>
           <nav className="space-y-1">
+            <button 
+              onClick={() => {
+                setMenuOpen(false);
+                setAssistantOpen(true);
+              }} 
+              className="flex w-full items-center gap-3 rounded-lg border border-signal/20 bg-signal/10 px-3 py-2.5 text-sm font-medium text-signal transition hover:bg-signal/15"
+            >
+              <Sparkles className="size-[17px] text-signal" />
+              AI Assistant
+            </button>
             <button onClick={() => setNotificationsOpen(true)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-mute transition hover:bg-raise hover:text-ink">
               <Bell className="size-[17px]"/>
               Notifications
@@ -170,6 +194,13 @@ function DashboardLayout() {
             <div className="font-display text-sm font-semibold">Financial overview</div>
           </div>
           <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setAssistantOpen(true)} 
+              className="flex items-center gap-1.5 rounded-lg border border-signal/30 bg-signal/10 px-3 py-1.5 text-xs font-medium text-signal transition hover:bg-signal/20 shadow-xs"
+            >
+              <Sparkles className="size-3.5" />
+              <span className="hidden sm:inline">AI Assistant</span>
+            </button>
             <button onClick={() => setSearchOpen(true)} className="flex items-center gap-2 rounded-lg border border-line bg-raise px-3 py-1.5 text-xs text-mute transition hover:border-signal/40 hover:text-ink">
               <Search className="size-3.5"/>
               <span className="hidden sm:inline">Search…</span>

@@ -1374,3 +1374,29 @@ python -m pytest ml/tests/test_ml.py
 # Run Production Frontend Build (Vite)
 npm run build
 ```
+
+
+==================================================
+
+## 🤖 Privacy-First AI Financial Assistant & Natural-Language Search
+
+FinSight features a dedicated **Natural-Language Financial Search & Assistant Drawer** accessible directly from the dashboard header and sidebar.
+
+### Capabilities:
+- **Conversational Spending Queries**: *"How much did I spend on food this month?"*, *"What were my biggest expenses last week?"*
+- **Filtered Transaction Search**: *"Show transactions above ₹5,000"*, *"Show Amazon shopping expenses"*
+- **Budget & Health Tracking**: *"Am I close to exceeding my budgets?"*, *"What is my financial health score?"*
+- **Controlled Transaction Staging**: *"Add a ₹450 food expense for Swiggy"* $\rightarrow$ Opens a visual confirmation card requiring explicit user confirmation before recording.
+- **Safe Route Navigation**: *"Open my budgets"*, *"Take me to savings goals"*
+
+### Privacy & Security Guarantees:
+- **Zero Financial Data Sent to External LLMs**: Intent parsing extracts only structured action schemas (`GET_SPENDING`, `GET_BUDGET_STATUS`).
+- **PostgreSQL RLS Enforcement**: Actor identity is derived strictly from verified JWT sessions (`auth.uid()`).
+- **Allowlisted Tool Architecture**: Only 10 authorized tools are callable. No raw SQL or unrestricted database access.
+- **Prompt Injection Defense**: Intercepts and rejects prompt injection and privilege escalation attempts.
+
+### Verification:
+```bash
+# Run 70/70 Master Automated Tests (including 25 AI Assistant specs)
+npm test
+```
