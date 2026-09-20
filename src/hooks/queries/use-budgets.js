@@ -9,14 +9,42 @@ export function useBudget(userId, monthStart) {
     return useQuery({
         queryKey: queryKeys.budgets(userId ?? "", resolvedMonth),
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("budgets")
-                .select("*, budget_categories(*)")
-                .eq("month_start", resolvedMonth)
-                .maybeSingle();
-            if (error)
-                throw error;
-            return data;
+            try {
+                // Attempt standard joined select first
+                const { data, error } = await supabase
+                    .from("budgets")
+                    .select("*, budget_categories(*)")
+                    .eq("month_start", resolvedMonth)
+                    .maybeSingle();
+
+                if (!error) return data;
+            } catch {
+                // Fall through to manual multi-table fetch
+            }
+
+            // Fallback for schema cache / relationship embedding limitations
+            try {
+                const { data: budgetData, error: bErr } = await supabase
+                    .from("budgets")
+                    .select("*")
+                    .eq("month_start", resolvedMonth)
+                    .maybeSingle();
+
+                if (bErr || !budgetData) return null;
+
+                const { data: catData } = await supabase
+                    .from("budget_categories")
+                    .select("*")
+                    .eq("budget_id", budgetData.id);
+
+                return {
+                    ...budgetData,
+                    budget_categories: catData || [],
+                };
+            } catch (fallbackErr) {
+                console.warn("[FinSight Budgets] Error querying budget:", fallbackErr?.message);
+                return null;
+            }
         },
         enabled: !!userId,
     });

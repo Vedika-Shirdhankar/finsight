@@ -9,13 +9,20 @@ export function useRecurringTransactions(userId) {
     return useQuery({
         queryKey: queryKeys.recurringTransactions(userId ?? ""),
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("recurring_transactions")
-                .select("*")
-                .order("next_due_date", { ascending: true });
-            if (error)
-                throw error;
-            return data;
+            try {
+                const { data, error } = await supabase
+                    .from("recurring_transactions")
+                    .select("*")
+                    .order("next_due_date", { ascending: true });
+                if (error) {
+                    console.warn("[FinSight Recurring] Notice:", error.message);
+                    return [];
+                }
+                return data || [];
+            } catch (err) {
+                console.warn("[FinSight Recurring] Error:", err?.message);
+                return [];
+            }
         },
         enabled: !!userId,
     });

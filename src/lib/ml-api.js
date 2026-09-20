@@ -111,11 +111,11 @@ export async function analyzeTransactions(transactions = []) {
       results: enrichedResults,
     };
   } catch (err) {
-    console.error("[FinSight ML API] Network error during prediction:", err);
+    console.info("[FinSight ML API] Optional FastAPI ML service offline (run `uvicorn ml.app:app --port 8000` to enable live Isolation Forest). Falling back to client-side rule engine.");
     return {
       success: false,
       reason: "api_unavailable",
-      message: "ML analysis is currently unavailable. Please try again.",
+      message: "Standalone ML service is offline. (Run `uvicorn ml.app:app --port 8000` to start it).",
       error: err.message,
       summary: { total: transactions.length, anomaliesCount: 0, anomalyPct: 0 },
       results: [],

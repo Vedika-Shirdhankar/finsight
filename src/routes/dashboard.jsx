@@ -293,6 +293,19 @@ function DashboardLayout() {
             </div>
           </div>)}
 
+        {/* AI Assistant Drawer */}
+        <AiAssistantDrawer
+          isOpen={assistantOpen}
+          onClose={() => setAssistantOpen(false)}
+          userId={userId}
+          transactions={Array.isArray(txns) ? txns : (txns?.items || [])}
+          budget={budget}
+          goals={goals || []}
+          recurringTxns={recurringTxns || []}
+          categories={categories || []}
+          accounts={accounts || []}
+        />
+
         <main className="mx-auto max-w-[1600px] p-4 sm:p-5 lg:p-8">
           <Outlet />
         </main>
