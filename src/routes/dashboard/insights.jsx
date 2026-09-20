@@ -10,7 +10,7 @@ import { useCategories } from "@/hooks/queries/use-categories";
 import { useBudget } from "@/hooks/queries/use-budgets";
 import { useRecurringTransactions } from "@/hooks/queries/use-recurring-transactions";
 import { useSavingsGoals } from "@/hooks/queries/use-savings-goals";
-import { detectAnomalies, forecastNextMonthSpend, calculateCategoryDrift, projectCashFlow, } from "@/lib/analytics";
+import { detectAnomalies, forecastNextMonthSpend, calculateCategoryDrift, projectCashFlow, calculateFinancialHealthScore, generateMonthlyInsights, } from "@/lib/analytics";
 import { generateMonthlySummaryPdf } from "@/lib/pdf-summary";
 import { analyzeTransactions } from "@/lib/ml-api";
 export const Route = createFileRoute("/dashboard/insights")({
@@ -97,6 +97,8 @@ function InsightsPage() {
     const forecast = forecastNextMonthSpend(transactions);
     const categoryDrift = calculateCategoryDrift(transactions, categoryNameById);
     const cashFlowTimeline = projectCashFlow(currentBalance > 0 ? currentBalance : 85420, recurringTxns || [], goals || [], expenses > 0 ? expenses / 2 : 25000);
+    const healthScore = calculateFinancialHealthScore(transactions, budget, goals || [], recurringTxns || [], accounts || []);
+    const monthlyInsights = generateMonthlyInsights(transactions, budget, categoryNameById);
     const forecastChartData = [
         ...monthlyTrend.map((m) => ({
             month: m.month,
