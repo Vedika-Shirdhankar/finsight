@@ -31,9 +31,11 @@ export function normalizeMerchant(rawMerchant) {
     if (!rawMerchant || typeof rawMerchant !== "string") return "";
     let cleaned = rawMerchant.trim().toLowerCase();
 
-    for (const pattern of STRIP_AFFIXES) {
-        cleaned = cleaned.replace(pattern, "").trim();
-    }
+    // Strip leading payment channel prefixes like 'UPI-', 'POS*', 'NEFT-', 'IMPS-'
+    cleaned = cleaned.replace(/^(upi|pos|ach|neft|rtgs|imps|in)[-*_\s]+/i, "");
+
+    // Strip company legal identifiers and geographic suffix
+    cleaned = cleaned.replace(/\b(pvt|ltd|limited|inc|corp|corporation|llc|co|india|direct|pay|online)\b/gi, "");
 
     return cleaned.replace(/[^a-z0-9]/g, "");
 }

@@ -59,7 +59,7 @@ export function detectAnomalies(transactions = [], categoryNameById = new Map(),
             const amount = Number(t.amount);
             const z = (amount - mean) / stdDev;
 
-            if (z >= zThreshold) {
+            if (z >= zThreshold || (amount >= mean * 2.5 && z >= 1.6)) {
                 let severity = "Low";
                 if (z >= 3.5 || amount >= mean * 3) {
                     severity = "High";
@@ -163,8 +163,16 @@ export function calculateFinancialHealthScore(transactions = [], budgets = [], g
     const budgetCategories = budgetList.flatMap((b) => b.budget_categories || []);
 
     if (budgetCategories.length > 0) {
+        const now = new Date();
+        const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+        const currentMonthExpenses = txns.filter((t) => {
+            if (t.type !== "expense" || !t.category_id) return false;
+            return !t.transaction_date || t.transaction_date.slice(0, 7) === currentMonthKey;
+        });
+        const evalTxns = currentMonthExpenses.length > 0 ? currentMonthExpenses : txns.filter((t) => t.type === "expense" && t.category_id);
+
         const spendByCat = new Map();
-        txns.filter((t) => t.type === "expense" && t.category_id).forEach((t) => {
+        evalTxns.forEach((t) => {
             spendByCat.set(t.category_id, (spendByCat.get(t.category_id) || 0) + Number(t.amount));
         });
 
