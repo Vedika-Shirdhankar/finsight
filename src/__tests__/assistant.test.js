@@ -84,6 +84,11 @@ export async function runAssistantTests() {
     assert(writeIntent.transactionData.amount === 450, "Extracted amount = 450");
     assert(writeIntent.transactionData.type === "expense", "Extracted type = expense");
 
+    const savingsWrite = parseUserIntent("i wanna add 60 in savings", sampleCategories);
+    assert(savingsWrite.intent === INTENTS.PREPARE_TRANSACTION, "Parsed savings add intent");
+    assert(savingsWrite.transactionData.amount === 60, "Extracted savings amount = 60");
+    assert(savingsWrite.transactionData.categoryName === "Savings", "Extracted Savings category");
+
     // 5. End-to-End Orchestration & Tool Execution
     console.log("  [End-to-End Assistant Orchestration]");
     const mockContext = {

@@ -265,7 +265,65 @@ export function parseUserIntent(prompt, categories = []) {
         }
     }
 
-    // 2. Financial Health Score Intent
+    // 2. Transaction / Financial Mutation Intent (Write Operation Staging)
+    // E.g. "Add a ₹500 food expense", "Log expense 300 for uber", "i wanna add 60 in savings", "save 500 for emergency fund"
+    const hasMutationVerb = (
+        text.startsWith("add ") ||
+        text.startsWith("log ") ||
+        text.startsWith("create ") ||
+        text.startsWith("record ") ||
+        text.startsWith("save ") ||
+        text.startsWith("deposit ") ||
+        text.includes("wanna add") ||
+        text.includes("want to add") ||
+        text.includes("wanna save") ||
+        text.includes("want to save") ||
+        text.includes("put in savings") ||
+        text.includes("deposit in") ||
+        text.includes("deposit into") ||
+        text.includes("transfer to savings")
+    );
+
+    if (hasMutationVerb) {
+        const isIncome = text.includes("income") || text.includes("salary") || text.includes("received");
+        const amountMatch = text.match(/(?:₹|rs\.?|inr|\$)?\s*(\d+(?:\.\d+)?)/i);
+        const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
+
+        // Try extracting merchant/description or goal
+        let merchant = "Manual Entry";
+        const isSavings = text.includes("saving") || text.includes("savings");
+        if (isSavings) {
+            merchant = "Savings Deposit";
+        }
+        if (text.includes("for ") || text.includes("on ") || text.includes("at ") || text.includes("in ") || text.includes("to ")) {
+            const parts = text.split(/(?:for|on|at|in|to|into)\s+/i);
+            if (parts[1]) {
+                const rawMerchant = parts[1].split(/\s+(?:yesterday|today|this|using|via)/)[0].trim();
+                if (rawMerchant && rawMerchant !== "savings") {
+                    merchant = rawMerchant.charAt(0).toUpperCase() + rawMerchant.slice(1);
+                }
+            }
+        }
+
+        const resolvedCategoryName = isSavings ? "Savings" : (category?.name || "General");
+
+        return {
+            intent: INTENTS.PREPARE_TRANSACTION,
+            transactionData: {
+                amount,
+                type: isIncome ? "income" : "expense",
+                merchant: merchant.slice(0, 50),
+                category_id: category?.id || null,
+                categoryName: resolvedCategoryName,
+                transaction_date: new Date().toISOString().slice(0, 10),
+                payment_method: "UPI",
+            },
+            requiresConfirmation: true,
+            isSafe: true,
+        };
+    }
+
+    // 3. Financial Health Score Intent
     if (text.includes("health score") || text.includes("financial health") || text.includes("financial score") || text.includes("how healthy")) {
         return {
             intent: INTENTS.GET_HEALTH_SCORE,
@@ -273,7 +331,7 @@ export function parseUserIntent(prompt, categories = []) {
         };
     }
 
-    // 3. Anomaly / Unusual Spending Intent
+    // 4. Anomaly / Unusual Spending Intent
     if (text.includes("unusual") || text.includes("anomaly") || text.includes("anomalies") || text.includes("outlier") || text.includes("suspicious")) {
         return {
             intent: INTENTS.GET_ANOMALIES,
@@ -283,7 +341,7 @@ export function parseUserIntent(prompt, categories = []) {
         };
     }
 
-    // 4. Spending Forecast Intent
+    // 5. Spending Forecast Intent
     if (text.includes("forecast") || text.includes("predict") || text.includes("projected spend") || text.includes("next month spend")) {
         return {
             intent: INTENTS.GET_FORECAST,
@@ -291,7 +349,7 @@ export function parseUserIntent(prompt, categories = []) {
         };
     }
 
-    // 5. Budget Status Intent
+    // 6. Budget Status Intent
     if (text.includes("budget") || text.includes("overspending") || text.includes("limit") || text.includes("close to exceeding")) {
         return {
             intent: INTENTS.GET_BUDGET_STATUS,
@@ -301,7 +359,7 @@ export function parseUserIntent(prompt, categories = []) {
         };
     }
 
-    // 6. Savings Goals Intent
+    // 7. Savings Goals Intent
     if (text.includes("goal") || text.includes("saving") || text.includes("savings progress") || text.includes("target")) {
         return {
             intent: INTENTS.GET_GOALS,
@@ -309,40 +367,10 @@ export function parseUserIntent(prompt, categories = []) {
         };
     }
 
-    // 7. Recurring & Subscriptions Intent
+    // 8. Recurring & Subscriptions Intent
     if (text.includes("recurring") || text.includes("subscription") || text.includes("upcoming bill") || text.includes("autopay")) {
         return {
             intent: INTENTS.GET_RECURRING,
-            isSafe: true,
-        };
-    }
-
-    // 8. Transaction Mutation Intent (Write Operation Staging)
-    // E.g. "Add a ₹500 food expense", "Log expense 300 for uber"
-    if (text.startsWith("add ") || text.startsWith("log ") || text.startsWith("create ") || text.startsWith("record ")) {
-        const isExpense = !text.includes("income");
-        const amountMatch = text.match(/(?:₹|rs\.?|inr)?\s*(\d+(?:\.\d+)?)/i);
-        const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
-
-        // Try extracting merchant/description
-        let merchant = "Manual Entry";
-        if (text.includes("for ") || text.includes("on ") || text.includes("at ")) {
-            const parts = text.split(/(?:for|on|at)\s+/i);
-            if (parts[1]) merchant = parts[1].split(/\s+(?:yesterday|today|this)/)[0].trim();
-        }
-
-        return {
-            intent: INTENTS.PREPARE_TRANSACTION,
-            transactionData: {
-                amount,
-                type: isExpense ? "expense" : "income",
-                merchant: merchant.slice(0, 50),
-                category_id: category?.id || null,
-                categoryName: category?.name || "General",
-                transaction_date: new Date().toISOString().slice(0, 10),
-                payment_method: "UPI",
-            },
-            requiresConfirmation: true,
             isSafe: true,
         };
     }
