@@ -1,21 +1,21 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Download, Pencil, Plus, Search, Trash2, Upload, X, Building2, RefreshCw, ShieldCheck, } from "lucide-react";
+import { Download, Pencil, Plus, Search, Trash2, Upload, X, Building2, RefreshCw, ShieldCheck, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { predictCategory } from "@/lib/auto-categorize";
 import { detectDuplicates } from "@/lib/duplicate-detector";
-import { SUPPORTED_INSTITUTIONS, connectLiveBankFeed, fetchLiveBankTelemetry, } from "@/lib/bank-sync";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription, } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select";
+import { SUPPORTED_INSTITUTIONS, connectLiveBankFeed, fetchLiveBankTelemetry } from "@/lib/bank-sync";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
 import { useAccounts } from "@/hooks/queries/use-accounts";
 import { useCategories } from "@/hooks/queries/use-categories";
-import { useCreateTransaction, useDeleteTransaction, useTransactions, useUpdateTransaction, } from "@/hooks/queries/use-transactions";
-import { bulkInsertTransactions, mapCsvRows, parseCsvFile, } from "@/lib/csv-import";
+import { useCreateTransaction, useDeleteTransaction, useTransactions, useUpdateTransaction } from "@/hooks/queries/use-transactions";
+import { bulkInsertTransactions, mapCsvRows, parseCsvFile } from "@/lib/csv-import";
 export const Route = createFileRoute("/dashboard/transactions")({
     component: TransactionsPage,
 });
@@ -42,7 +42,7 @@ function TransactionsPage() {
     const [toDate, setToDate] = useState("");
     const [page, setPage] = useState(1);
     const filters = useMemo(() => {
-        const f = {};
+        const f = { page, pageSize: PAGE_SIZE };
         if (search)
             f.search = search;
         if (typeFilter !== "all")
@@ -56,15 +56,16 @@ function TransactionsPage() {
         if (toDate)
             f.to = toDate;
         return f;
-    }, [search, typeFilter, categoryFilter, accountFilter, fromDate, toDate]);
-    const { data: transactions, isLoading } = useTransactions(userId, filters);
+    }, [search, typeFilter, categoryFilter, accountFilter, fromDate, toDate, page]);
+    const { data: txnResponse, isLoading } = useTransactions(userId, filters);
+    const transactions = txnResponse?.items || (Array.isArray(txnResponse) ? txnResponse : []);
+    const totalCount = txnResponse?.totalCount ?? transactions.length;
+    const totalPages = txnResponse?.totalPages ?? Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
     const { data: accounts } = useAccounts(userId);
     const { data: categories } = useCategories(userId);
     const createTxn = useCreateTransaction(userId);
     const updateTxn = useUpdateTransaction(userId);
     const deleteTxn = useDeleteTransaction(userId);
-    const totalPages = Math.max(1, Math.ceil((transactions?.length ?? 0) / PAGE_SIZE));
-    const pageItems = (transactions ?? []).slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
     const categoryNameById = useMemo(() => new Map((categories ?? []).map((c) => [c.id, c.name])), [categories]);
     const accountNameById = useMemo(() => new Map((accounts ?? []).map((a) => [a.id, a.name])), [accounts]);
     function clearFilters() {
@@ -417,7 +418,7 @@ function TransactionsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {pageItems.map((t) => (<tr key={t.id} className="hover:bg-raise/30">
+              {transactions.map((t) => (<tr key={t.id} className="hover:bg-raise/30">
                   <td className="px-5 py-3 font-mono text-mute">
                     {new Date(t.transaction_date).toLocaleDateString("en-IN", {
                     day: "numeric",
@@ -454,15 +455,54 @@ function TransactionsPage() {
           </table>)}
       </div>
 
+      {/* Server-Side Pagination Bar */}
+      {totalCount > 0 && (
+        <div className="flex flex-col items-center justify-between gap-4 py-2 sm:flex-row">
+          <div className="text-xs font-mono text-mute">
+            Showing <span className="font-semibold text-ink">{(page - 1) * PAGE_SIZE + 1}</span> to{" "}
+            <span className="font-semibold text-ink">{Math.min(page * PAGE_SIZE, totalCount)}</span> of{" "}
+            <span className="font-semibold text-ink">{totalCount}</span> transactions
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || isLoading}
+              className="h-8 gap-1 text-xs"
+            >
+              <ChevronLeft className="size-3.5" /> Previous
+            </Button>
+            <span className="px-2 text-xs font-mono text-mute">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages || isLoading}
+              className="h-8 gap-1 text-xs"
+            >
+              Next <ChevronRight className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Live Bank Feed / Account Aggregator Dialog */}
       <Dialog open={bankSyncOpen} onOpenChange={setBankSyncOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
+            <div className="mb-1 flex items-center gap-2">
+              <span className="rounded-full bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 text-[10px] font-mono font-medium text-amber-500">
+                Sandbox / Demo Mode
+              </span>
+            </div>
             <DialogTitle className="flex items-center gap-2">
-              <Building2 className="size-5 text-signal"/> Live Bank & Account Aggregator (AA) Sync
+              <Building2 className="size-5 text-signal"/> Bank & Account Aggregator (AA) Sync
             </DialogTitle>
             <DialogDescription>
-              Connect to India's Account Aggregator framework or Plaid to fetch real-time bank telemetry.
+              Simulate Account Aggregator consent flow and ingest sample telemetry streams in sandbox mode.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 py-3">

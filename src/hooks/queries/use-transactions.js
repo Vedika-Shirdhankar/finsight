@@ -7,31 +7,68 @@ export function useTransactions(userId, filters = {}) {
     return useQuery({
         queryKey: queryKeys.transactions(userId ?? "", filters),
         queryFn: async () => {
+            const isPaginated = filters.page !== undefined && filters.page !== null;
+            const pageSize = filters.pageSize || filters.limit || 15;
+            const page = Math.max(1, Number(filters.page) || 1);
+
             let query = supabase
                 .from("transactions")
-                .select("*")
-                .order("transaction_date", { ascending: false });
+                .select("*", isPaginated ? { count: "exact" } : undefined)
+                .order(filters.sortBy || "transaction_date", { 
+                    ascending: filters.sortOrder === "asc" 
+                });
+
             if (filters.from)
                 query = query.gte("transaction_date", filters.from);
             if (filters.to)
                 query = query.lte("transaction_date", filters.to);
-            if (filters.categoryId)
+            if (filters.categoryId && filters.categoryId !== "all")
                 query = query.eq("category_id", filters.categoryId);
-            if (filters.accountId)
+            if (filters.accountId && filters.accountId !== "all")
                 query = query.eq("account_id", filters.accountId);
-            if (filters.type)
+            if (filters.type && filters.type !== "all")
                 query = query.eq("type", filters.type);
             if (filters.search)
-                query = query.ilike("merchant", `%${filters.search}%`);
-            if (filters.limit)
+                query = query.or(`merchant.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+            if (filters.minAmount !== undefined && filters.minAmount !== null && filters.minAmount !== "")
+                query = query.gte("amount", Number(filters.minAmount));
+            if (filters.maxAmount !== undefined && filters.maxAmount !== null && filters.maxAmount !== "")
+                query = query.lte("amount", Number(filters.maxAmount));
+
+            if (isPaginated) {
+                const from = (page - 1) * pageSize;
+                const to = from + pageSize - 1;
+                query = query.range(from, to);
+            } else if (filters.limit) {
                 query = query.limit(filters.limit);
-            const { data, error } = await query;
+            }
+
+            const { data, count, error } = await query;
             if (error)
                 throw error;
-            return data;
+
+            if (isPaginated) {
+                const totalCount = count ?? (data?.length || 0);
+                const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+                return {
+                    items: data || [],
+                    totalCount,
+                    totalPages,
+                    page,
+                    pageSize,
+                };
+            }
+
+            return data || [];
         },
         enabled: !!userId,
     });
+}
+
+export function usePaginatedTransactions(userId, filters = {}) {
+    const page = filters.page || 1;
+    const pageSize = filters.pageSize || 15;
+    return useTransactions(userId, { ...filters, page, pageSize });
 }
 
 export function useCreateTransaction(userId) {
