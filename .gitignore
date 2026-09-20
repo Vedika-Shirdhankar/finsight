@@ -13,6 +13,7 @@ backend/node_modules/
 
 # Build and output directories
 .output/
+.output/**
 dist/
 build/
 .tanstack/
