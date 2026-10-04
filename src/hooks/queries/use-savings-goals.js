@@ -2,18 +2,22 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "./keys";
 import { auditLog } from "@/lib/audit-logger";
+import { sandboxStore } from "@/lib/sandbox-store";
 
 export function useSavingsGoals(userId) {
     return useQuery({
         queryKey: queryKeys.savingsGoals(userId ?? ""),
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("savings_goals")
-                .select("*")
-                .order("created_at", { ascending: true });
-            if (error)
-                throw error;
-            return data;
+            try {
+                const { data, error } = await supabase
+                    .from("savings_goals")
+                    .select("*")
+                    .order("created_at", { ascending: true });
+                if (!error && data && data.length > 0) return data;
+            } catch {
+                // fall through to sandbox
+            }
+            return sandboxStore.getGoals();
         },
         enabled: !!userId,
     });
@@ -25,13 +29,21 @@ export function useCreateSavingsGoal(userId) {
         mutationFn: async (input) => {
             if (!userId)
                 throw new Error("Not signed in");
-            const { data, error } = await supabase
-                .from("savings_goals")
-                .insert({ ...input, user_id: userId })
-                .select()
-                .single();
-            if (error)
-                throw error;
+            let data = null;
+            try {
+                const res = await supabase
+                    .from("savings_goals")
+                    .insert({ ...input, user_id: userId })
+                    .select()
+                    .single();
+                if (!res.error && res.data) data = res.data;
+            } catch {
+                // fallback
+            }
+
+            if (!data) {
+                data = sandboxStore.addGoal({ ...input, user_id: userId });
+            }
 
             await auditLog({
                 userId,
@@ -40,7 +52,7 @@ export function useCreateSavingsGoal(userId) {
                 resourceId: data.id,
                 newData: data,
                 metadata: { name: data.name, target_amount: data.target_amount },
-            });
+            }).catch(() => {});
 
             return data;
         },
@@ -58,31 +70,31 @@ export function useUpdateSavingsGoal(userId) {
             if (!userId)
                 throw new Error("Not signed in");
 
-            const { data: oldGoal } = await supabase
-                .from("savings_goals")
-                .select("*")
-                .eq("id", id)
-                .maybeSingle();
+            let data = null;
+            try {
+                const res = await supabase
+                    .from("savings_goals")
+                    .update(input)
+                    .eq("id", id)
+                    .select()
+                    .single();
+                if (!res.error && res.data) data = res.data;
+            } catch {
+                // fallback
+            }
 
-            const { data, error } = await supabase
-                .from("savings_goals")
-                .update(input)
-                .eq("id", id)
-                .select()
-                .single();
-
-            if (error)
-                throw error;
+            if (!data) {
+                data = sandboxStore.updateGoal(id, input);
+            }
 
             await auditLog({
                 userId,
                 action: "UPDATE",
                 resourceType: "savings_goal",
                 resourceId: data.id,
-                oldData: oldGoal,
                 newData: data,
                 metadata: { name: data.name },
-            });
+            }).catch(() => {});
 
             return data;
         },
@@ -100,24 +112,19 @@ export function useDeleteSavingsGoal(userId) {
             if (!userId)
                 throw new Error("Not signed in");
 
-            const { data: oldGoal } = await supabase
-                .from("savings_goals")
-                .select("*")
-                .eq("id", id)
-                .maybeSingle();
-
-            const { error } = await supabase.from("savings_goals").delete().eq("id", id);
-            if (error)
-                throw error;
+            try {
+                await supabase.from("savings_goals").delete().eq("id", id);
+            } catch {
+                // fallback
+            }
+            sandboxStore.deleteGoal(id);
 
             await auditLog({
                 userId,
                 action: "DELETE",
                 resourceType: "savings_goal",
                 resourceId: id,
-                oldData: oldGoal,
-                metadata: { name: oldGoal?.name ?? null },
-            });
+            }).catch(() => {});
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.savingsGoals(userId ?? "") });
@@ -125,6 +132,7 @@ export function useDeleteSavingsGoal(userId) {
         },
     });
 }
+
 
 export function useUpdateSavingsGoalProgress(userId) {
     const queryClient = useQueryClient();

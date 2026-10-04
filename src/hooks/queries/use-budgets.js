@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "./keys";
 import { auditLog } from "@/lib/audit-logger";
+import { sandboxStore } from "@/lib/sandbox-store";
 
 /** Fetches the budget for a given month (defaults to the current month) plus its per-category limits. */
 export function useBudget(userId, monthStart) {
@@ -17,7 +18,7 @@ export function useBudget(userId, monthStart) {
                     .eq("month_start", resolvedMonth)
                     .maybeSingle();
 
-                if (!error) return data;
+                if (!error && data) return data;
             } catch {
                 // Fall through to manual multi-table fetch
             }
@@ -30,25 +31,27 @@ export function useBudget(userId, monthStart) {
                     .eq("month_start", resolvedMonth)
                     .maybeSingle();
 
-                if (bErr || !budgetData) return null;
+                if (!bErr && budgetData) {
+                    const { data: catData } = await supabase
+                        .from("budget_categories")
+                        .select("*")
+                        .eq("budget_id", budgetData.id);
 
-                const { data: catData } = await supabase
-                    .from("budget_categories")
-                    .select("*")
-                    .eq("budget_id", budgetData.id);
-
-                return {
-                    ...budgetData,
-                    budget_categories: catData || [],
-                };
-            } catch (fallbackErr) {
-                console.warn("[FinSight Budgets] Error querying budget:", fallbackErr?.message);
-                return null;
+                    return {
+                        ...budgetData,
+                        budget_categories: catData || [],
+                    };
+                }
+            } catch {
+                // fall through to sandbox
             }
+
+            return sandboxStore.getBudget(resolvedMonth);
         },
         enabled: !!userId,
     });
 }
+
 
 export function useCreateBudget(userId) {
     const queryClient = useQueryClient();

@@ -1,26 +1,47 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { authService } from "@/lib/auth-service";
+
 /**
- * Client-side hook for the current auth session. Use this inside dashboard
- * pages/components to get the logged-in user's id for queries.
- *
- * `loading` is true only until the first session check resolves — after
- * that it flips false even if the user is signed out, so guarded routes
- * can redirect instead of spinning forever.
+ * Client-side hook for the current auth session.
+ * Supports both live Supabase JWT sessions and Instant Sandbox Demo sessions.
  */
 export function useAuth() {
     const [session, setSession] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isDemo, setIsDemo] = useState(false);
+
     useEffect(() => {
-        supabase.auth.getSession().then(({ data }) => {
-            setSession(data.session);
-            setLoading(false);
+        let mounted = true;
+
+        authService.getSession().then(({ session, isDemo: demoStatus }) => {
+            if (mounted) {
+                setSession(session);
+                setIsDemo(demoStatus);
+                setLoading(false);
+            }
         });
-        const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
-            setSession(newSession);
+
+        const unsubscribe = authService.onAuthStateChange((_event, newSession) => {
+            if (mounted) {
+                setSession(newSession);
+                setIsDemo(newSession?.access_token === "sandbox-demo-token");
+                setLoading(false);
+            }
         });
-        return () => listener.subscription.unsubscribe();
+
+        return () => {
+            mounted = false;
+            unsubscribe();
+        };
     }, []);
+
     const user = session?.user ?? null;
-    return { session, user, userId: user?.id ?? null, loading };
+    return {
+        session,
+        user,
+        userId: user?.id ?? null,
+        isDemo,
+        loading,
+        signOut: authService.signOut,
+    };
 }

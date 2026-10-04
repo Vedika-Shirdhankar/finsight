@@ -73,11 +73,17 @@ export async function runAnalyticsTests() {
 
     // 2. Financial Health Score Tests
     console.log("  [Financial Health Score]");
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonthStr = String(now.getMonth() + 1).padStart(2, "0");
+    const prevMonthStr = String(now.getMonth() === 0 ? 12 : now.getMonth()).padStart(2, "0");
+    const prevYearStr = now.getMonth() === 0 ? curYear - 1 : curYear;
+
     const healthTxns = [
-        { amount: 100000, type: "income", transaction_date: "2026-08-01" },
-        { amount: 60000, type: "expense", category_id: "cat_dining", transaction_date: "2026-08-15" },
-        { amount: 100000, type: "income", transaction_date: "2026-09-01" },
-        { amount: 62000, type: "expense", category_id: "cat_dining", transaction_date: "2026-09-15" },
+        { amount: 100000, type: "income", transaction_date: `${prevYearStr}-${prevMonthStr}-01` },
+        { amount: 60000, type: "expense", category_id: "cat_dining", transaction_date: `${prevYearStr}-${prevMonthStr}-15` },
+        { amount: 100000, type: "income", transaction_date: `${curYear}-${curMonthStr}-01` },
+        { amount: 62000, type: "expense", category_id: "cat_dining", transaction_date: `${curYear}-${curMonthStr}-15` },
     ];
     const budgets = {
         budget_categories: [

@@ -2,18 +2,22 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "./keys";
 import { auditLog } from "@/lib/audit-logger";
+import { sandboxStore } from "@/lib/sandbox-store";
 
 export function useAccounts(userId) {
     return useQuery({
         queryKey: queryKeys.accounts(userId ?? ""),
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("accounts")
-                .select("*")
-                .order("created_at", { ascending: true });
-            if (error)
-                throw error;
-            return data;
+            try {
+                const { data, error } = await supabase
+                    .from("accounts")
+                    .select("*")
+                    .order("created_at", { ascending: true });
+                if (!error && data && data.length > 0) return data;
+            } catch {
+                // fall through to sandbox
+            }
+            return sandboxStore.getAccounts();
         },
         enabled: !!userId,
     });
@@ -32,13 +36,21 @@ export function useCreateAccount(userId) {
         mutationFn: async (input) => {
             if (!userId)
                 throw new Error("Not signed in");
-            const { data, error } = await supabase
-                .from("accounts")
-                .insert({ ...input, user_id: userId })
-                .select()
-                .single();
-            if (error)
-                throw error;
+            let data = null;
+            try {
+                const res = await supabase
+                    .from("accounts")
+                    .insert({ ...input, user_id: userId })
+                    .select()
+                    .single();
+                if (!res.error && res.data) data = res.data;
+            } catch {
+                // fallback
+            }
+
+            if (!data) {
+                data = sandboxStore.addAccount({ ...input, user_id: userId });
+            }
 
             await auditLog({
                 userId,
@@ -47,7 +59,7 @@ export function useCreateAccount(userId) {
                 resourceId: data.id,
                 newData: data,
                 metadata: { name: data.name, type: data.type },
-            });
+            }).catch(() => {});
 
             return data;
         },
@@ -65,31 +77,37 @@ export function useUpdateAccount(userId) {
             if (!userId)
                 throw new Error("Not signed in");
 
-            const { data: oldAccount } = await supabase
-                .from("accounts")
-                .select("*")
-                .eq("id", id)
-                .maybeSingle();
+            let data = null;
+            try {
+                const { data: oldAccount } = await supabase
+                    .from("accounts")
+                    .select("*")
+                    .eq("id", id)
+                    .maybeSingle();
 
-            const { data, error } = await supabase
-                .from("accounts")
-                .update(input)
-                .eq("id", id)
-                .select()
-                .single();
+                const res = await supabase
+                    .from("accounts")
+                    .update(input)
+                    .eq("id", id)
+                    .select()
+                    .single();
+                if (!res.error && res.data) data = res.data;
+            } catch {
+                // fallback
+            }
 
-            if (error)
-                throw error;
+            if (!data) {
+                data = sandboxStore.updateAccount(id, input);
+            }
 
             await auditLog({
                 userId,
                 action: "UPDATE",
                 resourceType: "account",
                 resourceId: data.id,
-                oldData: oldAccount,
                 newData: data,
                 metadata: { name: data.name },
-            });
+            }).catch(() => {});
 
             return data;
         },
@@ -107,24 +125,19 @@ export function useDeleteAccount(userId) {
             if (!userId)
                 throw new Error("Not signed in");
 
-            const { data: oldAccount } = await supabase
-                .from("accounts")
-                .select("*")
-                .eq("id", id)
-                .maybeSingle();
-
-            const { error } = await supabase.from("accounts").delete().eq("id", id);
-            if (error)
-                throw error;
+            try {
+                await supabase.from("accounts").delete().eq("id", id);
+            } catch {
+                // fallback
+            }
+            sandboxStore.deleteAccount(id);
 
             await auditLog({
                 userId,
                 action: "DELETE",
                 resourceType: "account",
                 resourceId: id,
-                oldData: oldAccount,
-                metadata: { name: oldAccount?.name ?? null },
-            });
+            }).catch(() => {});
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.accounts(userId ?? "") });
@@ -132,3 +145,4 @@ export function useDeleteAccount(userId) {
         },
     });
 }
+

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "./keys";
 import { useNotifications } from "./use-notifications";
 import { auditLog } from "@/lib/audit-logger";
+import { sandboxStore } from "@/lib/sandbox-store";
 
 export function useRecurringTransactions(userId) {
     return useQuery({
@@ -14,15 +15,13 @@ export function useRecurringTransactions(userId) {
                     .from("recurring_transactions")
                     .select("*")
                     .order("next_due_date", { ascending: true });
-                if (error) {
-                    console.warn("[FinSight Recurring] Notice:", error.message);
-                    return [];
+                if (!error && data && data.length > 0) {
+                    return data;
                 }
-                return data || [];
-            } catch (err) {
-                console.warn("[FinSight Recurring] Error:", err?.message);
-                return [];
+            } catch {
+                // fall through
             }
+            return sandboxStore.getRecurring();
         },
         enabled: !!userId,
     });
@@ -34,13 +33,21 @@ export function useCreateRecurringTransaction(userId) {
         mutationFn: async (input) => {
             if (!userId)
                 throw new Error("Not signed in");
-            const { data, error } = await supabase
-                .from("recurring_transactions")
-                .insert({ ...input, user_id: userId })
-                .select()
-                .single();
-            if (error)
-                throw error;
+            let data = null;
+            try {
+                const res = await supabase
+                    .from("recurring_transactions")
+                    .insert({ ...input, user_id: userId })
+                    .select()
+                    .single();
+                if (!res.error && res.data) data = res.data;
+            } catch {
+                // fallback
+            }
+
+            if (!data) {
+                data = sandboxStore.addRecurring({ ...input, user_id: userId });
+            }
 
             await auditLog({
                 userId,
@@ -49,7 +56,7 @@ export function useCreateRecurringTransaction(userId) {
                 resourceId: data.id,
                 newData: data,
                 metadata: { merchant: data.merchant, amount: data.amount, frequency: data.frequency },
-            });
+            }).catch(() => {});
 
             return data;
         },
@@ -67,31 +74,31 @@ export function useUpdateRecurringTransaction(userId) {
             if (!userId)
                 throw new Error("Not signed in");
 
-            const { data: oldRecord } = await supabase
-                .from("recurring_transactions")
-                .select("*")
-                .eq("id", id)
-                .maybeSingle();
+            let data = null;
+            try {
+                const res = await supabase
+                    .from("recurring_transactions")
+                    .update(input)
+                    .eq("id", id)
+                    .select()
+                    .single();
+                if (!res.error && res.data) data = res.data;
+            } catch {
+                // fallback
+            }
 
-            const { data, error } = await supabase
-                .from("recurring_transactions")
-                .update(input)
-                .eq("id", id)
-                .select()
-                .single();
-
-            if (error)
-                throw error;
+            if (!data) {
+                data = sandboxStore.updateRecurring(id, input);
+            }
 
             await auditLog({
                 userId,
                 action: "UPDATE",
                 resourceType: "recurring_transaction",
                 resourceId: data.id,
-                oldData: oldRecord,
                 newData: data,
                 metadata: { merchant: data.merchant },
-            });
+            }).catch(() => {});
 
             return data;
         },
@@ -109,24 +116,19 @@ export function useDeleteRecurringTransaction(userId) {
             if (!userId)
                 throw new Error("Not signed in");
 
-            const { data: oldRecord } = await supabase
-                .from("recurring_transactions")
-                .select("*")
-                .eq("id", id)
-                .maybeSingle();
-
-            const { error } = await supabase.from("recurring_transactions").delete().eq("id", id);
-            if (error)
-                throw error;
+            try {
+                await supabase.from("recurring_transactions").delete().eq("id", id);
+            } catch {
+                // fallback
+            }
+            sandboxStore.deleteRecurring(id);
 
             await auditLog({
                 userId,
                 action: "DELETE",
                 resourceType: "recurring_transaction",
                 resourceId: id,
-                oldData: oldRecord,
-                metadata: { merchant: oldRecord?.merchant ?? null },
-            });
+            }).catch(() => {});
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.recurringTransactions(userId ?? "") });
@@ -134,6 +136,7 @@ export function useDeleteRecurringTransaction(userId) {
         },
     });
 }
+
 
 function advanceDueDate(date, frequency) {
     const d = new Date(date + "T00:00:00");

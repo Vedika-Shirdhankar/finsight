@@ -91,11 +91,12 @@ export async function runAssistantTests() {
 
     // 5. End-to-End Orchestration & Tool Execution
     console.log("  [End-to-End Assistant Orchestration]");
+    const curMonth = new Date().toISOString().slice(0, 7);
     const mockContext = {
         userId: "test-user-uuid",
         transactions: [
-            { id: "t1", amount: 350, type: "expense", category_id: "cat_food", transaction_date: "2026-09-10" },
-            { id: "t2", amount: 650, type: "expense", category_id: "cat_food", transaction_date: "2026-09-12" },
+            { id: "t1", amount: 350, type: "expense", category_id: "cat_food", transaction_date: `${curMonth}-01` },
+            { id: "t2", amount: 650, type: "expense", category_id: "cat_food", transaction_date: `${curMonth}-02` },
         ],
         categories: sampleCategories,
     };
