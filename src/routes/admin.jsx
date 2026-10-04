@@ -4,6 +4,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Activity, ArrowLeft, BarChart3, CheckCircle2, CircleDollarSign, Database, FileText, LayoutDashboard, LogOut, Menu, ShieldCheck, Users, WalletCards, X, } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
+import { authService } from "@/lib/auth-service";
 import { getAdminOverview } from "@/lib/admin.functions";
 import { AuditLogsPage } from "./dashboard/audit-logs";
 export const Route = createFileRoute("/admin")({
@@ -55,7 +56,7 @@ function AdminPage() {
         staleTime: 60_000,
     });
     async function signOut() {
-        await supabase.auth.signOut();
+        await authService.signOut();
         await navigate({ to: "/auth", replace: true });
     }
     return (<div className="min-h-screen bg-page text-ink">

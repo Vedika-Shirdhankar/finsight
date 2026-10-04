@@ -3,6 +3,7 @@ import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tan
 import { AreaChart, Bell, ChevronDown, FileText, LayoutDashboard, LogOut, Menu, PieChart, Repeat, Search, Settings, ShieldCheck, Target, WalletCards, X, Sparkles, } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { authService } from "@/lib/auth-service";
 import { useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications, useNotificationSync, } from "@/hooks/queries/use-notifications";
 import { useRecurringTransactions, useRecurringTransactionSync } from "@/hooks/queries/use-recurring-transactions";
 import { useTransactions } from "@/hooks/queries/use-transactions";
@@ -79,8 +80,8 @@ function DashboardLayout() {
             void navigate({ to: "/auth" });
     }, [loading, user, navigate]);
     async function signOut() {
-        await supabase.auth.signOut();
-        void navigate({ to: "/auth" });
+        await authService.signOut();
+        void navigate({ to: "/auth", replace: true });
     }
     if (loading || !user) {
         return (<div className="grid min-h-screen place-items-center bg-page text-mute text-sm font-mono">
